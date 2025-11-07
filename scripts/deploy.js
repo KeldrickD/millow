@@ -7,60 +7,115 @@
 const hre = require("hardhat");
 
 const tokens = (n) => {
-  return ethers.utils.parseUnits(n.toString(), 'ether')
-}
+  return (hre.ethers.parseUnits
+    ? hre.ethers.parseUnits(n.toString(), 'ether')
+    : hre.ethers.utils.parseUnits(n.toString(), 'ether'));
+};
+
+const waitDeployed = async (contract) => {
+  if (typeof contract.waitForDeployment === 'function') {
+    await contract.waitForDeployment();
+  } else if (typeof contract.deployed === 'function') {
+    await contract.deployed();
+  }
+};
+
+const resolveAddress = async (contract) => {
+  if (typeof contract.getAddress === 'function') {
+    return await contract.getAddress();
+  }
+  return contract.target || contract.address;
+};
 
 async function main() {
-  // Setup accounts
-  const [buyer, seller, inspector, lender] = await ethers.getSigners()
+  const signers = await hre.ethers.getSigners();
+  const deployer = signers[0];
+  const envSeller = process.env.SELLER_ADDRESS;
+  const sellerAddress = envSeller && envSeller !== "" ? envSeller : (signers[1]?.address || deployer.address);
 
-  // Deploy Real Estate
-  const RealEstate = await ethers.getContractFactory('RealEstate')
-  const realEstate = await RealEstate.deploy()
-  await realEstate.deployed()
+  console.log(`Deployer: ${deployer.address}`);
+  console.log(`Seller:   ${sellerAddress}`);
 
-  console.log(`Deployed Real Estate Contract at: ${realEstate.address}`)
-  console.log(`Minting 3 properties...\n`)
+  // Deploy Governance token
+  const Governance = await hre.ethers.getContractFactory("Governance");
+  const governance = await Governance.deploy();
+  await waitDeployed(governance);
+  console.log(`Governance deployed at: ${await resolveAddress(governance)}`);
 
-  for (let i = 0; i < 3; i++) {
-    const transaction = await realEstate.connect(seller).mint(`https://ipfs.io/ipfs/QmQVcpsjrA6cr1iJjZAodYwmPekYgbnXGo4DFubJiLc2EB/${i + 1}.json`)
-    await transaction.wait()
-  }
+  // Deploy Property (ERC1155)
+  const Property = await hre.ethers.getContractFactory("Property");
+  const property = await Property.deploy("https://example.com/metadata/{id}.json");
+  await waitDeployed(property);
+  console.log(`Property deployed at: ${await resolveAddress(property)}`);
 
-  // Deploy Escrow
-  const Escrow = await ethers.getContractFactory('Escrow')
-  const escrow = await Escrow.deploy(
-    realEstate.address,
-    seller.address,
-    inspector.address,
-    lender.address
-  )
-  await escrow.deployed()
+  // Create property #1 config
+  const propertyId = 1;
+  const maxShares = 1000;
+  const sharePriceWei = tokens(0.1); // 0.1 ETH per share
+  const yieldBps = 500; // 5% mock yield
+  const metadataURI = "34-Unit Apt • Value-add • NOI $250k • Target $2.5M";
 
-  console.log(`Deployed Escrow Contract at: ${escrow.address}`)
-  console.log(`Listing 3 properties...\n`)
+  let tx = await property.createProperty(
+    propertyId,
+    maxShares,
+    sharePriceWei,
+    yieldBps,
+    metadataURI,
+    { gasLimit: 500000 }
+  );
+  await tx.wait();
+  console.log(`Property #${propertyId} created.`);
 
-  for (let i = 0; i < 3; i++) {
-    // Approve properties...
-    let transaction = await realEstate.connect(seller).approve(escrow.address, i + 1)
-    await transaction.wait()
-  }
+  // Deploy VoteEscrow
+  const minGovBalance = 0; // for MVP ease; set >0 to enforce holding BRICK
+  const VoteEscrow = await hre.ethers.getContractFactory("VoteEscrow");
+  const voteEscrow = await VoteEscrow.deploy(
+    await resolveAddress(property),
+    await resolveAddress(governance),
+    minGovBalance
+  );
+  await waitDeployed(voteEscrow);
+  console.log(`VoteEscrow deployed at: ${await resolveAddress(voteEscrow)}`);
 
-  // Listing properties...
-  transaction = await escrow.connect(seller).list(1, buyer.address, tokens(20), tokens(10))
-  await transaction.wait()
+  // Wire escrow as minter on Property
+  tx = await property.setEscrow(await resolveAddress(voteEscrow), { gasLimit: 200000 });
+  await tx.wait();
+  console.log(`Property escrow set.`);
 
-  transaction = await escrow.connect(seller).list(2, buyer.address, tokens(15), tokens(5))
-  await transaction.wait()
+  // Whitelist deployer and seller for transfers/mint reception
+  tx = await property.setWhitelisted(deployer.address, true, { gasLimit: 150000 });
+  await tx.wait();
+  tx = await property.setWhitelisted(sellerAddress, true, { gasLimit: 150000 });
+  await tx.wait();
+  console.log(`Whitelisted deployer and seller.`);
 
-  transaction = await escrow.connect(seller).list(3, buyer.address, tokens(10), tokens(5))
-  await transaction.wait()
+  // Propose the property deal
+  const targetPriceWei = tokens(100); // e.g., 100 ETH funding target for MVP
+  const deadline = Math.floor(Date.now() / 1000) + 14 * 24 * 60 * 60; // 14 days
+  tx = await voteEscrow.proposeProperty(
+    propertyId,
+    sellerAddress,
+    targetPriceWei,
+    deadline,
+    "34-unit apartment acquisition on Base",
+    { gasLimit: 400000 }
+  );
+  await tx.wait();
+  console.log(`Property proposal created.`);
 
-  console.log(`Finished.`)
+  console.log("Deployment complete.");
+  console.log({
+    Governance: await resolveAddress(governance),
+    Property: await resolveAddress(property),
+    VoteEscrow: await resolveAddress(voteEscrow),
+    propertyId,
+    sharePriceWei: sharePriceWei.toString(),
+    maxShares,
+    targetPriceWei: targetPriceWei.toString(),
+    deadline
+  });
 }
 
-// We recommend this pattern to be able to use async/await everywhere
-// and properly handle errors.
 main().catch((error) => {
   console.error(error);
   process.exitCode = 1;
