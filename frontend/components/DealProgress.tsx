@@ -4,12 +4,12 @@ import { useReadContract } from "wagmi";
 import { formatEther } from "viem";
 import { VOTE_ESCROW_ADDRESS, voteEscrowAbi } from "../lib/contracts";
 
-export default function DealProgress({ propertyId }: { propertyId: number }) {
+export default function DealProgress({ propertyId }: { propertyId: bigint }) {
   const { data: proposal } = useReadContract({
     address: VOTE_ESCROW_ADDRESS,
     abi: voteEscrowAbi,
     functionName: "getProposal",
-    args: [BigInt(propertyId)],
+    args: [propertyId],
     query: { enabled: !!VOTE_ESCROW_ADDRESS && voteEscrowAbi.length > 0, refetchInterval: 4000 }
   } as any);
 

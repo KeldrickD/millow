@@ -27,7 +27,9 @@ export default function ConnectWalletButton() {
   }
 
   if (!isConnected) {
-    const primary = connectors?.[0];
+    // Prefer Coinbase Wallet connector if available; fallback to first available
+    const coinbase = connectors?.find((c) => c.id === "coinbaseWallet" || c.name.toLowerCase().includes("coinbase"));
+    const primary = coinbase || connectors?.[0];
     return (
       <button
         type="button"

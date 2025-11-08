@@ -2,12 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { useReadContract, useWriteContract, useWaitForTransactionReceipt, useAccount, useChainId, useSwitchChain } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { parseEther, formatEther } from "viem";
 import { PROPERTY_ADDRESS, VOTE_ESCROW_ADDRESS, propertyAbi, voteEscrowAbi } from "../lib/contracts";
 import toast from "react-hot-toast";
 
-export default function DepositAndVoteForm({ propertyId }: { propertyId: number }) {
+export default function DepositAndVoteForm({ propertyId }: { propertyId: bigint }) {
   const [amount, setAmount] = useState("");
   const { address: account } = useAccount();
   const chainId = useChainId();
@@ -17,7 +17,7 @@ export default function DepositAndVoteForm({ propertyId }: { propertyId: number 
     address: PROPERTY_ADDRESS,
     abi: propertyAbi,
     functionName: "sharePriceWei",
-    args: [BigInt(propertyId)],
+    args: [propertyId],
     query: { enabled: Boolean(PROPERTY_ADDRESS) }
   } as any);
 
@@ -35,9 +35,9 @@ export default function DepositAndVoteForm({ propertyId }: { propertyId: number 
       return;
     }
 
-    if (chainId !== sepolia.id) {
+  if (chainId !== baseSepolia.id) {
       try {
-        await switchChain?.({ chainId: sepolia.id });
+        await switchChain?.({ chainId: baseSepolia.id });
       } catch {
         toast.error("Please switch to Sepolia to continue");
         return;
@@ -48,10 +48,10 @@ export default function DepositAndVoteForm({ propertyId }: { propertyId: number 
         address: VOTE_ESCROW_ADDRESS as `0x${string}`,
         abi: voteEscrowAbi as any,
         functionName: "voteAndLock",
-        args: [BigInt(propertyId), value] as const,
+        args: [propertyId, value] as const,
         value,
         account: account as `0x${string}` | undefined,
-        chain: sepolia
+        chain: baseSepolia
       },
       {
         onSuccess: (hash) => {
@@ -97,12 +97,17 @@ export default function DepositAndVoteForm({ propertyId }: { propertyId: number 
         )}
         <button
           type="submit"
-          disabled={isPending || !VOTE_ESCROW_ADDRESS}
+          disabled={isPending || !VOTE_ESCROW_ADDRESS || chainId !== baseSepolia.id}
           style={{ border: "1px solid #000", borderRadius: 8, padding: "8px 12px" }}
         >
           {isPending ? "Submitting..." : "Deposit & Vote"}
         </button>
       </form>
+      {txHash && (
+        <div style={{ marginTop: 8, fontSize: 12 }}>
+          Last tx: {txHash} · <a href={`https://sepolia.etherscan.io/tx/${txHash}`} target="_blank" rel="noreferrer" className="underline">View on Etherscan</a>
+        </div>
+      )}
     </section>
   );
 }

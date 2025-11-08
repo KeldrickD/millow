@@ -53,6 +53,11 @@ contract Property is ERC1155, Ownable {
 
     constructor(string memory globalURI) ERC1155(globalURI) Ownable(msg.sender) {}
 
+    // Helpers
+    function idFromAddress(address propertyAddress) public pure returns (uint256) {
+        return uint256(uint160(propertyAddress));
+    }
+
     function setEscrow(address newEscrow) external onlyOwner {
         require(newEscrow != address(0), "Property: zero escrow");
         escrow = newEscrow;
@@ -68,13 +73,13 @@ contract Property is ERC1155, Ownable {
         return _whitelist[account];
     }
 
-    function createProperty(
+    function _createProperty(
         uint256 propertyId,
         uint256 maxShares_,
         uint256 sharePriceWei_,
         uint16 yieldBps_,
         string memory metadataURI_
-    ) external onlyOwner {
+    ) internal {
         require(!properties[propertyId].exists, "Property: already exists");
         require(maxShares_ > 0, "Property: maxShares zero");
         require(sharePriceWei_ > 0, "Property: sharePrice zero");
@@ -94,6 +99,27 @@ contract Property is ERC1155, Ownable {
             yieldBps_,
             metadataURI_
         );
+    }
+
+    function createProperty(
+        uint256 propertyId,
+        uint256 maxShares_,
+        uint256 sharePriceWei_,
+        uint16 yieldBps_,
+        string memory metadataURI_
+    ) external onlyOwner {
+        _createProperty(propertyId, maxShares_, sharePriceWei_, yieldBps_, metadataURI_);
+    }
+
+    function createPropertyFromAddress(
+        address propertyAddress,
+        uint256 maxShares_,
+        uint256 sharePriceWei_,
+        uint16 yieldBps_,
+        string memory metadataURI_
+    ) external onlyOwner {
+        uint256 propertyId = idFromAddress(propertyAddress);
+        _createProperty(propertyId, maxShares_, sharePriceWei_, yieldBps_, metadataURI_);
     }
 
     function mintShares(

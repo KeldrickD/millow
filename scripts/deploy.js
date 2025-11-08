@@ -103,11 +103,27 @@ async function main() {
   await tx.wait();
   console.log(`Property proposal created.`);
 
+  // Deploy MockUSDC (rent token) and Yield vault
+  const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
+  const usdc = await MockUSDC.deploy();
+  await waitDeployed(usdc);
+  console.log(`MockUSDC deployed at: ${await resolveAddress(usdc)}`);
+
+  const PropertyYieldVault = await hre.ethers.getContractFactory("PropertyYieldVault");
+  const vault = await PropertyYieldVault.deploy(
+    await resolveAddress(usdc),
+    await resolveAddress(property)
+  );
+  await waitDeployed(vault);
+  console.log(`YieldVault deployed at: ${await resolveAddress(vault)}`);
+
   console.log("Deployment complete.");
   console.log({
     Governance: await resolveAddress(governance),
     Property: await resolveAddress(property),
     VoteEscrow: await resolveAddress(voteEscrow),
+    MockUSDC: await resolveAddress(usdc),
+    YieldVault: await resolveAddress(vault),
     propertyId,
     sharePriceWei: sharePriceWei.toString(),
     maxShares,

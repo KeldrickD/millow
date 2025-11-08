@@ -2,11 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useReadContract } from "wagmi";
-import { PROPERTY_ADDRESS, VOTE_ESCROW_ADDRESS, propertyAbi, voteEscrowAbi } from "../lib/contracts";
-import { formatEther } from "viem";
+import { PROPERTY_ADDRESS, VOTE_ESCROW_ADDRESS, propertyAbi, voteEscrowAbi, YIELD_VAULT_ADDRESS, yieldVaultAbi } from "../lib/contracts";
+import { formatEther, formatUnits } from "viem";
 
-export default function InvestorPosition({ propertyId }: { propertyId: number }) {
-  const pid = BigInt(propertyId);
+export default function InvestorPosition({ propertyId }: { propertyId: bigint }) {
+  const pid = propertyId;
   const { address, isConnected } = useAccount();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -56,11 +56,21 @@ export default function InvestorPosition({ propertyId }: { propertyId: number })
     query: { enabled: showConnected }
   } as any);
 
+  // Pending yield
+  const { data: pendingYield } = useReadContract({
+    address: YIELD_VAULT_ADDRESS,
+    abi: yieldVaultAbi,
+    functionName: "pendingYield",
+    args: [pid, (address || zero) as `0x${string}`],
+    query: { enabled: showConnected && !!YIELD_VAULT_ADDRESS }
+  } as any);
+
   const lockedEth = formatEther((lockedWei as bigint) ?? 0n);
   const entitledShares = sharePriceWei && (sharePriceWei as bigint) > 0n && lockedWei
     ? Number((lockedWei as bigint) / (sharePriceWei as bigint))
     : 0;
   const erc1155Shares = Number((erc1155BalanceRaw as bigint) ?? 0n);
+  const unclaimed = (pendingYield as bigint) ?? 0n;
 
   const hasUnclaimedRefund = finalized && !successful && ((lockedWei as bigint) ?? 0n) > 0n;
   const hasLockedButUnminted = finalized && successful && entitledShares > 0 && erc1155Shares === 0;
@@ -72,6 +82,9 @@ export default function InvestorPosition({ propertyId }: { propertyId: number })
         <div className="flex justify-between"><span>Total deposited (escrow)</span> <span className="font-semibold">{showConnected ? `${lockedEth} ETH` : "–"}</span></div>
         <div className="flex justify-between"><span>Entitled shares (pre-mint)</span> <span className="font-semibold">{showConnected ? entitledShares : "–"}</span></div>
         <div className="flex justify-between"><span>ERC-1155 shares (owned)</span> <span className="font-semibold">{showConnected ? erc1155Shares : "–"}</span></div>
+        {YIELD_VAULT_ADDRESS && (
+          <div className="flex justify-between"><span>Unclaimed yield</span> <span className="font-semibold">{showConnected ? `${formatUnits(unclaimed, 6)} USDC` : "–"}</span></div>
+        )}
       </div>
       <div className="pt-2" style={{ borderTop: "1px solid #eee", marginTop: 8, fontSize: 12, color: "#666" }}>
         {!showConnected && <p>Connect wallet to see your position.</p>}

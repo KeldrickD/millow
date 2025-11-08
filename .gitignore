@@ -1,3 +1,27 @@
+# General
+node_modules/
+*.log
+.DS_Store
+.env*
+
+# Build outputs
+build/
+dist/
+
+# Next.js (frontend)
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/.env.local
+frontend/.env*
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+
 # See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
 
 # dependencies

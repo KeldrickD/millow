@@ -1,6 +1,9 @@
 // Hardcoded deployed addresses (Sepolia)
-export const PROPERTY_ADDRESS = "0x608e43634924623F704b41a27bFfD20a4524A030" as const;
-export const VOTE_ESCROW_ADDRESS = "0xDaac7c27355c9ef5143Af9979fe4aff9B1088Ad2" as const;
+export const PROPERTY_ADDRESS = "0xd85E6bbf4DfbccF4b2a56333aEFaEDc663110bBe" as const;
+export const VOTE_ESCROW_ADDRESS = "0xF0e7017C05DD6F35C5C91E17b0e76abb5C47CED1" as const;
+export const YIELD_VAULT_ADDRESS = (process.env.NEXT_PUBLIC_YIELD_VAULT_ADDRESS as `0x${string}` | undefined) ?? "0xbB5Ca958CC2C874aC712Bc97636a1545DE67F915";
+export const USDC_ADDRESS = (process.env.NEXT_PUBLIC_USDC_ADDRESS as `0x${string}` | undefined) ?? "0x8289173Dba9D5D31F9D58A455E694A09f6447335";
+export const MOCK_USDC_ADDRESS = USDC_ADDRESS;
 
 // Minimal ABIs matching the MVP contracts
 export const propertyAbi = [
@@ -62,6 +65,32 @@ export const propertyAbi = [
       { name: "id", type: "uint256" }
     ],
     outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "properties",
+    stateMutability: "view",
+    inputs: [{ name: "propertyId", type: "uint256" }],
+    outputs: [
+      { name: "exists", type: "bool" },
+      { name: "maxShares", type: "uint256" },
+      { name: "sharePriceWei", type: "uint256" },
+      { name: "yieldBps", type: "uint16" },
+      { name: "metadataURI", type: "string" }
+    ]
+  },
+  {
+    type: "function",
+    name: "createProperty",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "propertyId", type: "uint256" },
+      { name: "maxShares", type: "uint256" },
+      { name: "sharePriceWei", type: "uint256" },
+      { name: "yieldBps", type: "uint16" },
+      { name: "metadataURI", type: "string" }
+    ],
+    outputs: []
   }
 ] as const;
 
@@ -85,6 +114,20 @@ export const voteEscrowAbi = [
   },
   {
     type: "function",
+    name: "getActivePropertyIds",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256[]" }]
+  },
+  {
+    type: "function",
+    name: "getAllPropertyIds",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "uint256[]" }]
+  },
+  {
+    type: "function",
     name: "lockedAmount",
     stateMutability: "view",
     inputs: [
@@ -92,6 +135,39 @@ export const voteEscrowAbi = [
       { name: "investor", type: "address" }
     ],
     outputs: [{ name: "", type: "uint256" }]
+  },
+  {
+    type: "function",
+    name: "proposeProperty",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "propertyId", type: "uint256" },
+      { name: "seller", type: "address" },
+      { name: "targetPriceWei", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+      { name: "description", type: "string" }
+    ],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "proposePropertyByAddress",
+    stateMutability: "nonpayable",
+    inputs: [
+      { name: "propertyAddress", type: "address" },
+      { name: "seller", type: "address" },
+      { name: "targetPriceWei", type: "uint256" },
+      { name: "deadline", type: "uint256" },
+      { name: "description", type: "string" }
+    ],
+    outputs: []
+  },
+  {
+    type: "function",
+    name: "owner",
+    stateMutability: "view",
+    inputs: [],
+    outputs: [{ name: "", type: "address" }]
   },
   // actions
   {
@@ -145,6 +221,29 @@ export const voteEscrowAbi = [
     ],
     anonymous: false
   }
+] as const;
+
+export const yieldVaultAbi = [
+  { type: "function", name: "pendingYield", stateMutability: "view", inputs: [ { name: "propertyId", type: "uint256" }, { name: "user", type: "address" } ], outputs: [ { name: "", type: "uint256" } ] },
+  { type: "function", name: "claimYield", stateMutability: "nonpayable", inputs: [ { name: "propertyId", type: "uint256" } ], outputs: [] },
+  { type: "function", name: "depositYield", stateMutability: "nonpayable", inputs: [ { name: "propertyId", type: "uint256" }, { name: "amount", type: "uint256" } ], outputs: [] },
+  { type: "function", name: "depositYieldByAddress", stateMutability: "nonpayable", inputs: [ { name: "propertyAddress", type: "address" }, { name: "amount", type: "uint256" } ], outputs: [] },
+  { type: "function", name: "pendingYieldByAddress", stateMutability: "view", inputs: [ { name: "propertyAddress", type: "address" }, { name: "user", type: "address" } ], outputs: [ { name: "", type: "uint256" } ] },
+  { type: "function", name: "claimYieldByAddress", stateMutability: "nonpayable", inputs: [ { name: "propertyAddress", type: "address" } ], outputs: [] }
+] as const;
+
+export const erc20Abi = [
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [ { name: "spender", type: "address" }, { name: "amount", type: "uint256" } ], outputs: [ { name: "", type: "bool" } ] },
+  { type: "function", name: "allowance", stateMutability: "view", inputs: [ { name: "owner", type: "address" }, { name: "spender", type: "address" } ], outputs: [ { name: "", type: "uint256" } ] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [ { name: "", type: "uint8" } ] }
+] as const;
+
+export const mockUsdcAbi = [
+  { type: "function", name: "mint", stateMutability: "nonpayable", inputs: [ { name: "to", type: "address" }, { name: "amount", type: "uint256" } ], outputs: [] },
+  { type: "function", name: "balanceOf", stateMutability: "view", inputs: [ { name: "account", type: "address" } ], outputs: [ { name: "", type: "uint256" } ] },
+  { type: "function", name: "decimals", stateMutability: "view", inputs: [], outputs: [ { name: "", type: "uint8" } ] },
+  { type: "function", name: "approve", stateMutability: "nonpayable", inputs: [ { name: "spender", type: "address" }, { name: "amount", type: "uint256" } ], outputs: [ { name: "", type: "bool" } ] },
+  { type: "function", name: "allowance", stateMutability: "view", inputs: [ { name: "owner", type: "address" }, { name: "spender", type: "address" } ], outputs: [ { name: "", type: "uint256" } ] }
 ] as const;
 
 

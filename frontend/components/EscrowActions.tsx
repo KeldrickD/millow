@@ -2,12 +2,12 @@
 
 import { useState } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 import { VOTE_ESCROW_ADDRESS, voteEscrowAbi } from "../lib/contracts";
 import toast from "react-hot-toast";
 
-export default function EscrowActions({ propertyId }: { propertyId: number }) {
-  const pid = BigInt(propertyId);
+export default function EscrowActions({ propertyId }: { propertyId: bigint }) {
+  const pid = propertyId;
   const { address } = useAccount();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
@@ -45,7 +45,7 @@ export default function EscrowActions({ propertyId }: { propertyId: number }) {
   function handleTriggerBuy() {
     if (!isAdmin) return;
     writeContract(
-      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "triggerBuy", args: [pid] as const, account: address as `0x${string}` | undefined, chain: sepolia },
+      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "triggerBuy", args: [pid] as const, account: address as `0x${string}` | undefined, chain: baseSepolia },
       { onSuccess: (hash) => { setTxHash(hash); toast.loading("Triggering buy…", { id: hash }); }, onError: () => toast.error("Failed to submit transaction") }
     );
   }
@@ -53,14 +53,14 @@ export default function EscrowActions({ propertyId }: { propertyId: number }) {
   function handleCancel() {
     if (!isAdmin) return;
     writeContract(
-      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "cancelProperty", args: [pid] as const, account: address as `0x${string}` | undefined, chain: sepolia },
+      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "cancelProperty", args: [pid] as const, account: address as `0x${string}` | undefined, chain: baseSepolia },
       { onSuccess: (hash) => { setTxHash(hash); toast.loading("Cancelling…", { id: hash }); }, onError: () => toast.error("Failed to submit transaction") }
     );
   }
 
   function handleRefund() {
     writeContract(
-      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "refund", args: [pid] as const, account: address as `0x${string}` | undefined, chain: sepolia },
+      { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "refund", args: [pid] as const, account: address as `0x${string}` | undefined, chain: baseSepolia },
       { onSuccess: (hash) => { setTxHash(hash); toast.loading("Submitting refund…", { id: hash }); }, onError: () => toast.error("Failed to submit transaction") }
     );
   }
@@ -95,7 +95,10 @@ export default function EscrowActions({ propertyId }: { propertyId: number }) {
       )}
 
       {txHash && (
-        <p className="text-xs text-gray-500 break-all">Last tx: {txHash} {isConfirmed && <span className="ml-1 text-emerald-600">✅ Confirmed</span>}</p>
+        <p className="text-xs text-gray-500 break-all">
+          Last tx: {txHash} {isConfirmed && <span className="ml-1 text-emerald-600">✅ Confirmed</span>} · {" "}
+          <a href={`https://sepolia.basescan.org/tx/${txHash}`} target="_blank" rel="noreferrer" className="underline">View on BaseScan</a>
+        </p>
       )}
     </div>
   );

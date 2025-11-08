@@ -41,6 +41,11 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
     mapping(uint256 => address[]) public investors;
     mapping(uint256 => mapping(address => uint256)) public lockedAmount;
 
+    // --- Simple registry for multi-property listing ---
+    uint256[] private _allPropertyIds;
+    mapping(uint256 => bool) private _propertyKnown;
+    mapping(uint256 => bool) private _isActive;
+
     event PropertyProposed(
         uint256 indexed propertyId,
         address indexed seller,
@@ -62,11 +67,17 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
 
     event PropertyCancelled(uint256 indexed propertyId);
 
+    event ProposalFinalized(uint256 indexed propertyId, bool success);
+
     event Refunded(
         uint256 indexed propertyId,
         address indexed investor,
         uint256 amountWei
     );
+
+    function idFromAddress(address propertyAddress) public pure returns (uint256) {
+        return uint256(uint160(propertyAddress));
+    }
 
     constructor(
         address propertyToken_,
@@ -111,7 +122,24 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
         p.finalized = false;
         p.successful = false;
 
+        // registry bookkeeping
+        if (!_propertyKnown[propertyId]) {
+            _propertyKnown[propertyId] = true;
+            _allPropertyIds.push(propertyId);
+        }
+        _isActive[propertyId] = true;
+
         emit PropertyProposed(propertyId, seller, targetPriceWei, deadline, description);
+    }
+
+    function proposePropertyByAddress(
+        address propertyAddress,
+        address seller,
+        uint256 targetPriceWei,
+        uint256 deadline,
+        string calldata description
+    ) external onlyOwner {
+        this.proposeProperty(idFromAddress(propertyAddress), seller, targetPriceWei, deadline, description);
     }
 
     function voteAndLock(uint256 propertyId, uint256 amountWei)
@@ -192,6 +220,10 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
         }
 
         emit BuyTriggered(propertyId, totalToSend);
+        if (_isActive[propertyId]) {
+            _isActive[propertyId] = false;
+        }
+        emit ProposalFinalized(propertyId, true);
     }
 
     function cancelProperty(uint256 propertyId) external onlyOwner {
@@ -203,6 +235,10 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
         p.successful = false;
 
         emit PropertyCancelled(propertyId);
+        if (_isActive[propertyId]) {
+            _isActive[propertyId] = false;
+        }
+        emit ProposalFinalized(propertyId, false);
     }
 
     function refund(uint256 propertyId) external nonReentrant {
@@ -230,6 +266,29 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
         emit Refunded(propertyId, msg.sender, amount);
     }
 
+    // --- Registry views ---
+    function getAllPropertyIds() external view returns (uint256[] memory) {
+        return _allPropertyIds;
+    }
+
+    function getActivePropertyIds() external view returns (uint256[] memory ids) {
+        uint256 len = _allPropertyIds.length;
+        uint256 count;
+        for (uint256 i = 0; i < len; i++) {
+            if (_isActive[_allPropertyIds[i]]) {
+                count++;
+            }
+        }
+        ids = new uint256[](count);
+        uint256 idx;
+        for (uint256 i = 0; i < len; i++) {
+            uint256 id = _allPropertyIds[i];
+            if (_isActive[id]) {
+                ids[idx++] = id;
+            }
+        }
+    }
+
     function getProposal(uint256 propertyId)
         external
         view
@@ -255,6 +314,23 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
             p.finalized,
             p.successful
         );
+    }
+
+    function getProposalByAddress(address propertyAddress)
+        external
+        view
+        returns (
+            bool exists,
+            address seller,
+            uint256 targetPriceWei,
+            string memory description,
+            uint256 totalLocked,
+            uint256 deadline,
+            bool finalized,
+            bool successful
+        )
+    {
+        return this.getProposal(idFromAddress(propertyAddress));
     }
 
     receive() external payable {

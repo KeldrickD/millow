@@ -4,27 +4,27 @@ import { useReadContract } from "wagmi";
 import { formatEther } from "viem";
 import { PROPERTY_ADDRESS, VOTE_ESCROW_ADDRESS, propertyAbi, voteEscrowAbi } from "../lib/contracts";
 
-export default function PropertySummary({ propertyId }: { propertyId: number }) {
+export default function PropertySummary({ propertyId }: { propertyId: bigint }) {
   const { data: meta } = useReadContract({
     address: PROPERTY_ADDRESS,
     abi: propertyAbi,
     functionName: "propertyMetadata",
-    args: [BigInt(propertyId)],
-    query: { enabled: !!PROPERTY_ADDRESS && propertyAbi.length > 0 }
+    args: [propertyId],
+    query: { enabled: !!PROPERTY_ADDRESS && propertyAbi.length > 0, refetchInterval: 4000 }
   } as any);
 
   const { data: proposal } = useReadContract({
     address: VOTE_ESCROW_ADDRESS,
     abi: voteEscrowAbi,
     functionName: "getProposal",
-    args: [BigInt(propertyId)],
-    query: { enabled: !!VOTE_ESCROW_ADDRESS && voteEscrowAbi.length > 0 }
+    args: [propertyId],
+    query: { enabled: !!VOTE_ESCROW_ADDRESS && voteEscrowAbi.length > 0, refetchInterval: 4000 }
   } as any);
 
   if (!meta || !proposal) {
     return (
       <section style={{ border: "1px solid #eee", borderRadius: 8, padding: 16 }}>
-        <div style={{ fontWeight: 600 }}>Property #{propertyId}</div>
+        <div style={{ fontWeight: 600 }}>Property #{propertyId.toString()}</div>
         <div style={{ color: "#999" }}>Connect ABIs and addresses to load data.</div>
       </section>
     );
@@ -46,7 +46,7 @@ export default function PropertySummary({ propertyId }: { propertyId: number }) 
   return (
     <section style={{ border: "1px solid #eee", borderRadius: 8, padding: 16 }}>
       <div style={{ fontWeight: 600, marginBottom: 6 }}>
-        Property #{propertyId} – {info.metadataURI || "34-Unit Apartment"}
+        Property #{propertyId.toString()} – {info.metadataURI || "34-Unit Apartment"}
       </div>
       <div style={{ color: "#666", fontSize: 14, marginBottom: 8 }}>{description}</div>
       <div style={{ fontSize: 14, lineHeight: "22px" }}>

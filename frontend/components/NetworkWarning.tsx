@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, useChainId, useSwitchChain } from "wagmi";
-import { sepolia } from "wagmi/chains";
+import { baseSepolia } from "wagmi/chains";
 
 export default function NetworkWarning() {
   const [mounted, setMounted] = useState(false);
@@ -12,7 +12,7 @@ export default function NetworkWarning() {
   const { switchChain, isPending } = useSwitchChain();
 
   if (!mounted) return null;
-  const wrong = isConnected && chainId !== undefined && chainId !== sepolia.id;
+  const wrong = isConnected && chainId !== undefined && chainId !== baseSepolia.id;
   if (!wrong) return null;
 
   return (
@@ -23,11 +23,11 @@ export default function NetworkWarning() {
         </span>
         <button
           type="button"
-          onClick={() => switchChain?.({ chainId: sepolia.id })}
+          onClick={() => switchChain?.({ chainId: baseSepolia.id })}
           disabled={isPending}
           className="ml-3 rounded-md border border-red-300 px-2 py-1 text-red-700 hover:bg-red-100"
         >
-          {isPending ? "Switching…" : "Switch to Sepolia"}
+          {isPending ? "Switching…" : "Switch to Base Sepolia"}
         </button>
       </div>
     </div>
