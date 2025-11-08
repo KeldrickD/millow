@@ -1,9 +1,8 @@
 {
   "version": 2,
-  "rootDirectory": "frontend",
-  "buildCommand": "npm run build",
-  "outputDirectory": ".next",
-  "framework": "nextjs"
+  "github": {
+    "silent": true
+  }
 }
 
 
