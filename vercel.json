@@ -1,8 +1,9 @@
 {
   "version": 2,
-  "github": {
-    "silent": true
-  }
+  "installCommand": "npm ci --prefix frontend",
+  "buildCommand": "npm run build --prefix frontend",
+  "framework": "nextjs",
+  "github": { "silent": true }
 }
 
 
