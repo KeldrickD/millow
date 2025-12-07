@@ -189,7 +189,7 @@ function Metric({ label, value }: { label: string; value: string }) {
   );
 }
 
-function Th({ children }: { children: React.ReactNode }) {
+function Th({ children }: { children?: React.ReactNode }) {
   return (
     <th className="px-3 py-2 text-left text-[10px] font-semibold uppercase tracking-wide text-mirage/60">
       {children}
