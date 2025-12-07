@@ -204,7 +204,8 @@ export default function AccessAdminPage() {
           Need to reward holders? <a href="/admin/airdrop" className="underline text-blaze">Go to BRICK Airdrop</a>
         </div>
         <div className="text-[11px] text-mirage/50">
-          Connected: {address ?? "—"} · Owner: {owner ?? "—"} · Min gov balance required: {minGovBalance?.toString?.() ?? "0"} wei{" "}
+          Connected: {(address as string | undefined) ?? "—"} · Owner: {(owner as string | undefined) ?? "—"} · Min gov balance
+          required: {minGovBalance?.toString?.() ?? "0"} wei{" "}
           {wrongChain && <span className="text-red-500">• Wrong network. Switch to Base or Base Sepolia.</span>}
         </div>
       </header>
