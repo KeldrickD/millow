@@ -131,36 +131,47 @@ export default function SimulatePage() {
   // Stable holder for propose payload across renders
   const proposePayloadRef = useRef<{ id: bigint; sellerAddr: string; targetWei: bigint; deadline: bigint; description: string } | null>(null);
 
-  useWaitForTransactionReceipt({
-    hash: createHash,
-    onSuccess: () => {
-      const payload = proposePayloadRef.current;
-      if (!payload) { setProposing(false); return; }
-      const { id, sellerAddr, targetWei, deadline, description } = payload;
-      writeContract(
-        { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "proposeProperty", args: [id, sellerAddr, targetWei, deadline, description], chain: baseSepolia, gas: 350000n } as any,
-        { onSuccess: (hash) => { setProposeHash(hash); toast.loading("Creating test proposal…", { id: hash }); setProposing(false); }, onError: () => { toast.error("Failed to create proposal"); setProposing(false); } }
-      );
-    },
-  });
+  const createReceipt = useWaitForTransactionReceipt({ hash: createHash, query: { enabled: Boolean(createHash) } });
+  const mintReceipt = useWaitForTransactionReceipt({ hash: mintHash, query: { enabled: Boolean(mintHash) } });
+  const approveReceipt = useWaitForTransactionReceipt({ hash: approveHash, query: { enabled: Boolean(approveHash) } });
+  const proposeReceipt = useWaitForTransactionReceipt({ hash: proposeHash, query: { enabled: Boolean(proposeHash) } });
+  const yieldReceipt = useWaitForTransactionReceipt({ hash: yieldHash, query: { enabled: Boolean(yieldHash) } });
 
-  useWaitForTransactionReceipt({
-    hash: mintHash,
-    onSuccess: () => { if (mintHash) toast.success("USDC minted ✅", { id: mintHash }); },
-    onError: () => { if (mintHash) toast.error("Mint failed", { id: mintHash }); }
-  });
+  useEffect(() => {
+    if (!createReceipt.isSuccess || !createHash) return;
+    const payload = proposePayloadRef.current;
+    if (!payload) { setProposing(false); return; }
+    const { id, sellerAddr, targetWei, deadline, description } = payload;
+    writeContract(
+      {
+        address: VOTE_ESCROW_ADDRESS as `0x${string}`,
+        abi: voteEscrowAbi as any,
+        functionName: "proposeProperty",
+        args: [id, sellerAddr, targetWei, deadline, description],
+        chain: baseSepolia,
+        gas: 350000n
+      } as any,
+      {
+        onSuccess: (hash) => { setProposeHash(hash); toast.loading("Creating test proposal…", { id: hash }); setProposing(false); },
+        onError: () => { toast.error("Failed to create proposal"); setProposing(false); }
+      }
+    );
+  }, [createReceipt.isSuccess, createHash, writeContract]);
 
-  useWaitForTransactionReceipt({
-    hash: approveHash,
-    onSuccess: () => { if (approveHash) toast.success("USDC approved ✅", { id: approveHash }); },
-    onError: () => { if (approveHash) toast.error("Approve failed", { id: approveHash }); }
-  });
+  useEffect(() => {
+    if (mintReceipt.isSuccess && mintHash) toast.success("USDC minted ✅", { id: mintHash });
+    if (mintReceipt.isError && mintHash) toast.error("Mint failed", { id: mintHash });
+  }, [mintReceipt.isSuccess, mintReceipt.isError, mintHash]);
 
-  useWaitForTransactionReceipt({
-    hash: proposeHash,
-    onSuccess: () => { if (proposeHash) toast.success("Proposal created ✅", { id: proposeHash }); },
-    onError: () => { if (proposeHash) toast.error("Proposal failed", { id: proposeHash }); }
-  });
+  useEffect(() => {
+    if (approveReceipt.isSuccess && approveHash) toast.success("USDC approved ✅", { id: approveHash });
+    if (approveReceipt.isError && approveHash) toast.error("Approve failed", { id: approveHash });
+  }, [approveReceipt.isSuccess, approveReceipt.isError, approveHash]);
+
+  useEffect(() => {
+    if (proposeReceipt.isSuccess && proposeHash) toast.success("Proposal created ✅", { id: proposeHash });
+    if (proposeReceipt.isError && proposeHash) toast.error("Proposal failed", { id: proposeHash });
+  }, [proposeReceipt.isSuccess, proposeReceipt.isError, proposeHash]);
 
   function seedYield() {
     try {
@@ -173,11 +184,10 @@ export default function SimulatePage() {
     } catch { toast.error("Invalid yield amount"); }
   }
 
-  useWaitForTransactionReceipt({
-    hash: yieldHash,
-    onSuccess: () => { if (yieldHash) toast.success("Yield deposited ✅", { id: yieldHash }); },
-    onError: () => { if (yieldHash) toast.error("Deposit failed", { id: yieldHash }); }
-  });
+  useEffect(() => {
+    if (yieldReceipt.isSuccess && yieldHash) toast.success("Yield deposited ✅", { id: yieldHash });
+    if (yieldReceipt.isError && yieldHash) toast.error("Deposit failed", { id: yieldHash });
+  }, [yieldReceipt.isSuccess, yieldReceipt.isError, yieldHash]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-6">
