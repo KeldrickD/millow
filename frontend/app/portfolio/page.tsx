@@ -8,6 +8,9 @@ import { useMyTrades } from "../../hooks/useMyTrades";
 export default function PortfolioPage() {
   const { address, positions, properties, rtoAgreements, loading, error } = usePortfolio();
   const { trades, loading: tradesLoading, hasWallet } = useMyTrades();
+  const dexTrades = (trades ?? []).filter(
+    (t): t is DexTrade => t.kind === "dex_buy" || t.kind === "dex_sell"
+  );
 
   if (!address) {
     return (
@@ -39,7 +42,7 @@ export default function PortfolioPage() {
         <>
           <OwnershipSection positions={positions} />
           <RentToOwnAgreementsSection agreements={rtoAgreements} properties={properties} />
-          <MyTradesSection trades={trades} loading={tradesLoading} hasWallet={hasWallet} />
+          <MyTradesSection trades={dexTrades} loading={tradesLoading} hasWallet={hasWallet} />
         </>
       )}
     </main>
