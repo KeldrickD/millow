@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useAccount, useChainId, usePublicClient, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { baseSepolia, base } from "wagmi/chains";
 import toast from "react-hot-toast";
 import { GOVERNANCE_ADDRESS, governanceAbi } from "../../../lib/contracts";
 import { fetchPropertyHolders } from "../../../lib/indexer";
@@ -55,6 +56,14 @@ export default function AirdropPage() {
       (mode === "custom" && customValues.length === recipients.length && customValues.every((v) => toWei(v))));
 
   function submitEqual() {
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
+    if (wrongChain) {
+      toast.error("Wrong network. Switch to Base or Base Sepolia.");
+      return;
+    }
     const amtWei = toWei(amountEach);
     if (!amtWei || recipients.length === 0) {
       toast.error("Enter recipients and amount");
@@ -65,7 +74,9 @@ export default function AirdropPage() {
         address: GOVERNANCE_ADDRESS,
         abi: governanceAbi as any,
         functionName: "airdropEqual",
-        args: [recipients, amtWei]
+        args: [recipients, amtWei],
+        chain: chainId === base.id ? base : baseSepolia,
+        account: address as `0x${string}`
       },
       {
         onSuccess(hash) {
@@ -80,6 +91,14 @@ export default function AirdropPage() {
   }
 
   function submitCustom() {
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
+    if (wrongChain) {
+      toast.error("Wrong network. Switch to Base or Base Sepolia.");
+      return;
+    }
     if (recipients.length === 0 || customValues.length !== recipients.length) {
       toast.error("Recipients and amounts must align");
       return;
@@ -94,7 +113,9 @@ export default function AirdropPage() {
         address: GOVERNANCE_ADDRESS,
         abi: governanceAbi as any,
         functionName: "airdrop",
-        args: [recipients, amountsWei]
+        args: [recipients, amountsWei],
+        chain: chainId === base.id ? base : baseSepolia,
+        account: address as `0x${string}`
       },
       {
         onSuccess(hash) {
