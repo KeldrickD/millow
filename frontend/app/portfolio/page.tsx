@@ -4,7 +4,6 @@ import Link from "next/link";
 import { formatEther, formatUnits } from "viem";
 import { usePortfolio } from "../../hooks/usePortfolio";
 import { useMyTrades } from "../../hooks/useMyTrades";
-import { formatUnits } from "viem";
 
 export default function PortfolioPage() {
   const { address, positions, properties, rtoAgreements, loading, error } = usePortfolio();
