@@ -1,9 +1,9 @@
 {
   "version": 2,
-  "installCommand": "cd frontend && npm ci",
-  "buildCommand": "cd frontend && npm run build",
+  "installCommand": "npm ci",
+  "buildCommand": "npm run build",
   "framework": "nextjs",
-  "outputDirectory": "frontend/.next",
+  "outputDirectory": ".next",
   "github": { "silent": true }
 }
 
