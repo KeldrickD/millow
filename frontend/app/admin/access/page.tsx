@@ -56,19 +56,19 @@ export default function AccessAdminPage() {
 
   const wlReceipt = useWaitForTransactionReceipt({
     hash: wlTxHash,
-    query: {
-      enabled: Boolean(wlTxHash),
-      onSuccess: () => {
-        if (wlTxHash) {
-          toast.success("Whitelist updated ✅", { id: wlTxHash });
-          refetchWhitelist?.();
-        }
-      },
-      onError: () => {
-        if (wlTxHash) toast.error("Whitelist update failed", { id: wlTxHash });
-      }
-    }
+    query: { enabled: Boolean(wlTxHash) }
   });
+  useEffect(() => {
+    if (wlReceipt.isSuccess && wlTxHash) {
+      toast.success("Whitelist updated ✅", { id: wlTxHash });
+      refetchWhitelist?.();
+    }
+  }, [wlReceipt.isSuccess, wlTxHash, refetchWhitelist]);
+  useEffect(() => {
+    if (wlReceipt.isError && wlTxHash) {
+      toast.error("Whitelist update failed", { id: wlTxHash });
+    }
+  }, [wlReceipt.isError, wlTxHash]);
 
   const { data: govDecimals } = useReadContract({
     address: GOVERNANCE_ADDRESS,
@@ -96,19 +96,19 @@ export default function AccessAdminPage() {
 
   const govReceipt = useWaitForTransactionReceipt({
     hash: govTxHash,
-    query: {
-      enabled: Boolean(govTxHash),
-      onSuccess: () => {
-        if (govTxHash) {
-          toast.success("Governance tokens sent ✅", { id: govTxHash });
-          refetchGovBalance?.();
-        }
-      },
-      onError: () => {
-        if (govTxHash) toast.error("Transfer failed", { id: govTxHash });
-      }
-    }
+    query: { enabled: Boolean(govTxHash) }
   });
+  useEffect(() => {
+    if (govReceipt.isSuccess && govTxHash) {
+      toast.success("Governance tokens sent ✅", { id: govTxHash });
+      refetchGovBalance?.();
+    }
+  }, [govReceipt.isSuccess, govTxHash, refetchGovBalance]);
+  useEffect(() => {
+    if (govReceipt.isError && govTxHash) {
+      toast.error("Transfer failed", { id: govTxHash });
+    }
+  }, [govReceipt.isError, govTxHash]);
 
   function updateWhitelist(allowed: boolean) {
     if (!isOwner) {
