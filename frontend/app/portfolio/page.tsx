@@ -218,12 +218,13 @@ function MyTradesSection({
   loading: boolean;
   hasWallet: boolean;
 }) {
+  const safeTrades = trades ?? [];
   return (
     <section className="space-y-3 mt-4">
       <h2 className="text-sm font-semibold text-mirage">My trades</h2>
       {!hasWallet && <p className="text-xs text-mirage/60">Connect your wallet to see your DEX trade history.</p>}
       {hasWallet && loading && <p className="text-xs text-mirage/60">Loading your trades…</p>}
-      {hasWallet && !loading && trades.length === 0 && (
+      {hasWallet && !loading && safeTrades.length === 0 && (
         <div className="text-xs text-mirage/60 bg-white rounded-2xl border border-white px-3 py-3">
           You haven’t traded any property shares on the DEX yet.
           <br />
@@ -234,9 +235,9 @@ function MyTradesSection({
           to find a property and try buying or selling shares.
         </div>
       )}
-      {hasWallet && !loading && trades.length > 0 && (
+      {hasWallet && !loading && safeTrades.length > 0 && (
         <div className="bg-white rounded-3xl border border-white px-3 py-3 space-y-2">
-          {trades.map((t, idx) => (
+          {safeTrades.map((t, idx) => (
             <MyTradeRow key={`${t.txHash}-${idx}`} trade={t} />
           ))}
         </div>
