@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { parseUnits, formatUnits } from "viem";
@@ -54,16 +54,18 @@ export default function AccessAdminPage() {
   const [wlTxHash, setWlTxHash] = useState<`0x${string}` | undefined>();
   const [govTxHash, setGovTxHash] = useState<`0x${string}` | undefined>();
 
-  useWaitForTransactionReceipt({
-    hash: wlTxHash,
-    onSuccess: () => {
-      if (wlTxHash) toast.success("Whitelist updated ✅", { id: wlTxHash });
+  const wlReceipt = useWaitForTransactionReceipt({ hash: wlTxHash });
+  useEffect(() => {
+    if (wlReceipt.isSuccess && wlTxHash) {
+      toast.success("Whitelist updated ✅", { id: wlTxHash });
       refetchWhitelist?.();
-    },
-    onError: () => {
-      if (wlTxHash) toast.error("Whitelist update failed", { id: wlTxHash });
     }
-  });
+  }, [wlReceipt.isSuccess, wlTxHash, refetchWhitelist]);
+  useEffect(() => {
+    if (wlReceipt.isError && wlTxHash) {
+      toast.error("Whitelist update failed", { id: wlTxHash });
+    }
+  }, [wlReceipt.isError, wlTxHash]);
 
   const { data: govDecimals } = useReadContract({
     address: GOVERNANCE_ADDRESS,
@@ -89,16 +91,18 @@ export default function AccessAdminPage() {
     }
   }, [govBalanceRaw, decimals]);
 
-  useWaitForTransactionReceipt({
-    hash: govTxHash,
-    onSuccess: () => {
-      if (govTxHash) toast.success("Governance tokens sent ✅", { id: govTxHash });
+  const govReceipt = useWaitForTransactionReceipt({ hash: govTxHash });
+  useEffect(() => {
+    if (govReceipt.isSuccess && govTxHash) {
+      toast.success("Governance tokens sent ✅", { id: govTxHash });
       refetchGovBalance?.();
-    },
-    onError: () => {
-      if (govTxHash) toast.error("Transfer failed", { id: govTxHash });
     }
-  });
+  }, [govReceipt.isSuccess, govTxHash, refetchGovBalance]);
+  useEffect(() => {
+    if (govReceipt.isError && govTxHash) {
+      toast.error("Transfer failed", { id: govTxHash });
+    }
+  }, [govReceipt.isError, govTxHash]);
 
   function updateWhitelist(allowed: boolean) {
     if (!isOwner) {
