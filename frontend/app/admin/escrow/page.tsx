@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { base, baseSepolia } from "wagmi/chains";
 import { parseEther } from "viem";
 import { SMART_ESCROW_ADDRESS, smartEscrowAbi } from "../../../lib/contracts";
 
@@ -37,6 +38,10 @@ export default function EscrowAdminPage() {
   function onCreate(e: React.FormEvent) {
     e.preventDefault();
     if (wrongChain) return;
+    if (!address) {
+      console.error("Connect a wallet first.");
+      return;
+    }
     const milestoneNames = milestonesCsv
       .split(",")
       .map((s) => s.trim())
@@ -58,7 +63,9 @@ export default function EscrowAdminPage() {
           deadline,
           oracle as `0x${string}`,
           milestoneNames
-        ]
+        ],
+        chain: chainId === base.id ? base : baseSepolia,
+        account: address as `0x${string}`
       },
       {
         onSuccess: (hash) => {
@@ -71,24 +78,36 @@ export default function EscrowAdminPage() {
   function onDeposit(e: React.FormEvent) {
     e.preventDefault();
     if (!depositEscrowId || wrongChain) return;
+    if (!address) {
+      console.error("Connect a wallet first.");
+      return;
+    }
     const value = parseEther(depositAmount || "0");
     writeContract({
       address: SMART_ESCROW_ADDRESS,
       abi: smartEscrowAbi as any,
       functionName: "deposit",
       args: [BigInt(depositEscrowId)],
-      value
+      value,
+      chain: chainId === base.id ? base : baseSepolia,
+      account: address as `0x${string}`
     });
   }
 
   function onForceComplete(e: React.FormEvent) {
     e.preventDefault();
     if (!completeEscrowId || !completeIndex || wrongChain) return;
+    if (!address) {
+      console.error("Connect a wallet first.");
+      return;
+    }
     writeContract({
       address: SMART_ESCROW_ADDRESS,
       abi: smartEscrowAbi as any,
       functionName: "ownerCompleteMilestone",
-      args: [BigInt(completeEscrowId), BigInt(completeIndex)]
+      args: [BigInt(completeEscrowId), BigInt(completeIndex)],
+      chain: chainId === base.id ? base : baseSepolia,
+      account: address as `0x${string}`
     });
   }
 
