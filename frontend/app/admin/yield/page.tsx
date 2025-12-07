@@ -21,7 +21,9 @@ export default function YieldAdminPage() {
   } as any);
 
   const isOwner = !!address && !!owner && (address as string).toLowerCase() === (owner as string).toLowerCase();
-  const wrongChain = chainId !== undefined && ![base.id, baseSepolia.id].includes(chainId);
+  const SUPPORTED_CHAINS = [base.id, baseSepolia.id] as const;
+  const wrongChain =
+    chainId !== undefined && !SUPPORTED_CHAINS.includes(chainId as (typeof SUPPORTED_CHAINS)[number]);
   const { writeContract, isPending } = useWriteContract();
 
   if (!YIELD_VAULT_ADDRESS || !USDC_ADDRESS) {
