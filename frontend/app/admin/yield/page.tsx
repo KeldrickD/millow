@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useReadContract, useWriteContract } from "wagmi";
+import { useAccount, useChainId, useReadContract, useWriteContract } from "wagmi";
+import { base, baseSepolia } from "wagmi/chains";
 import { parseUnits } from "viem";
 import { YIELD_VAULT_ADDRESS, yieldVaultAbi, USDC_ADDRESS, erc20Abi, voteEscrowAbi, VOTE_ESCROW_ADDRESS } from "../../../lib/contracts";
 import { idFromPropertyKey } from "../../../lib/slug";
@@ -9,6 +10,7 @@ import toast from "react-hot-toast";
 
 export default function YieldAdminPage() {
   const { address } = useAccount();
+  const chainId = useChainId();
   const [propertyLabel, setPropertyLabel] = useState("");
   const [amount, setAmount] = useState("100"); // USDC amount (6dp)
 
@@ -19,6 +21,7 @@ export default function YieldAdminPage() {
   } as any);
 
   const isOwner = !!address && !!owner && (address as string).toLowerCase() === (owner as string).toLowerCase();
+  const wrongChain = chainId !== undefined && ![base.id, baseSepolia.id].includes(chainId);
   const { writeContract, isPending } = useWriteContract();
 
   if (!YIELD_VAULT_ADDRESS || !USDC_ADDRESS) {
@@ -30,21 +33,51 @@ export default function YieldAdminPage() {
   }
 
   function handleApprove() {
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
+    if (wrongChain) {
+      toast.error("Switch to Base or Base Sepolia.");
+      return;
+    }
     try {
       const amt = parseUnits(amount, 6);
       writeContract(
-        { address: USDC_ADDRESS as `0x${string}`, abi: erc20Abi as any, functionName: "approve", args: [YIELD_VAULT_ADDRESS, amt] },
+        {
+          address: USDC_ADDRESS as `0x${string}`,
+          abi: erc20Abi as any,
+          functionName: "approve",
+          args: [YIELD_VAULT_ADDRESS, amt],
+          chain: chainId === base.id ? base : baseSepolia,
+          account: address as `0x${string}`
+        },
         { onSuccess: (hash) => toast.loading("Approving USDC…", { id: hash }), onError: () => toast.error("Approval failed") }
       );
     } catch { toast.error("Invalid amount"); }
   }
 
   function handleDeposit() {
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
+    if (wrongChain) {
+      toast.error("Switch to Base or Base Sepolia.");
+      return;
+    }
     try {
       const amt = parseUnits(amount, 6);
       const pid = idFromPropertyKey(propertyLabel);
       writeContract(
-        { address: YIELD_VAULT_ADDRESS as `0x${string}`, abi: yieldVaultAbi as any, functionName: "depositYield", args: [pid, amt] },
+        {
+          address: YIELD_VAULT_ADDRESS as `0x${string}`,
+          abi: yieldVaultAbi as any,
+          functionName: "depositYield",
+          args: [pid, amt],
+          chain: chainId === base.id ? base : baseSepolia,
+          account: address as `0x${string}`
+        },
         { onSuccess: (hash) => toast.loading("Depositing yield…", { id: hash }), onError: () => toast.error("Deposit failed") }
       );
     } catch { toast.error("Invalid input"); }
