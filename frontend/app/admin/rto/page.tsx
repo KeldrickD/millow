@@ -2,11 +2,12 @@
 
 import { FormEvent, useState } from "react";
 import { useAccount, useChainId, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { base, baseSepolia } from "wagmi/chains";
 import { parseUnits } from "viem";
 import { RENT_TO_OWN_ADDRESS, rentToOwnAbi } from "../../../lib/contracts";
 import { idFromPropertyKey } from "../../../lib/slug";
 
-const SUPPORTED_CHAINS = [84532, 8453];
+const SUPPORTED_CHAINS = [baseSepolia.id, base.id];
 
 export default function AdminRentToOwnPage() {
   const chainId = useChainId();
@@ -31,21 +32,17 @@ export default function AdminRentToOwnPage() {
   const { writeContract: writeCreate, data: createHash } = useWriteContract();
   const { writeContract: writePay, data: payHash } = useWriteContract();
 
-  useWaitForTransactionReceipt({
-    hash: createHash,
-    onSuccess() {
-      setCreateStatus("Agreement created successfully.");
-      setCreateLoading(false);
-    }
-  });
+  const createReceipt = useWaitForTransactionReceipt({ hash: createHash, query: { enabled: Boolean(createHash) } });
+  const payReceipt = useWaitForTransactionReceipt({ hash: payHash, query: { enabled: Boolean(payHash) } });
 
-  useWaitForTransactionReceipt({
-    hash: payHash,
-    onSuccess() {
-      setPayStatus("Payment submitted successfully.");
-      setPayLoading(false);
-    }
-  });
+  if (createReceipt.isSuccess && createHash && createLoading) {
+    setCreateStatus("Agreement created successfully.");
+    setCreateLoading(false);
+  }
+  if (payReceipt.isSuccess && payHash && payLoading) {
+    setPayStatus("Payment submitted successfully.");
+    setPayLoading(false);
+  }
 
   const wrongNetwork = !SUPPORTED_CHAINS.includes(chainId ?? 0);
 
@@ -56,6 +53,10 @@ export default function AdminRentToOwnPage() {
 
   const handleCreate = (e: FormEvent) => {
     e.preventDefault();
+    if (!address) {
+      setCreateStatus("Connect a wallet first.");
+      return;
+    }
     if (!RENT_TO_OWN_ADDRESS) {
       setCreateStatus("RENT_TO_OWN_ADDRESS not configured.");
       return;
@@ -80,7 +81,9 @@ export default function AdminRentToOwnPage() {
           address: RENT_TO_OWN_ADDRESS,
           abi: rentToOwnAbi,
           functionName: "createAgreement",
-          args: [tenant as `0x${string}`, landlord as `0x${string}`, propertyId, paymentAmountRaw, equity, maxP]
+          args: [tenant as `0x${string}`, landlord as `0x${string}`, propertyId, paymentAmountRaw, equity, maxP],
+          chain: chainId === base.id ? base : baseSepolia,
+          account: address as `0x${string}`
         },
         {
           onError(err) {
@@ -99,6 +102,10 @@ export default function AdminRentToOwnPage() {
 
   const handlePay = (e: FormEvent) => {
     e.preventDefault();
+    if (!address) {
+      setPayStatus("Connect a wallet first.");
+      return;
+    }
     if (!RENT_TO_OWN_ADDRESS) {
       setPayStatus("RENT_TO_OWN_ADDRESS not configured.");
       return;
@@ -118,7 +125,9 @@ export default function AdminRentToOwnPage() {
           address: RENT_TO_OWN_ADDRESS,
           abi: rentToOwnAbi,
           functionName: "pay",
-          args: [id]
+          args: [id],
+          chain: chainId === base.id ? base : baseSepolia,
+          account: address as `0x${string}`
         },
         {
           onError(err) {
