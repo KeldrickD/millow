@@ -7,7 +7,7 @@ import { parseUnits } from "viem";
 import { RENT_TO_OWN_ADDRESS, rentToOwnAbi } from "../../../lib/contracts";
 import { idFromPropertyKey } from "../../../lib/slug";
 
-const SUPPORTED_CHAINS = [baseSepolia.id, base.id];
+const SUPPORTED_CHAINS = [baseSepolia.id, base.id] as const;
 
 export default function AdminRentToOwnPage() {
   const chainId = useChainId();
@@ -44,7 +44,7 @@ export default function AdminRentToOwnPage() {
     setPayLoading(false);
   }
 
-  const wrongNetwork = !SUPPORTED_CHAINS.includes(chainId ?? 0);
+  const wrongNetwork = chainId !== undefined && !SUPPORTED_CHAINS.includes(chainId as (typeof SUPPORTED_CHAINS)[number]);
 
   function onChangeCreate(e: React.ChangeEvent<HTMLInputElement>) {
     const { name, value } = e.target;
