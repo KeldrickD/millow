@@ -2,7 +2,7 @@ const { expect } = require("chai");
 const { ethers } = require("hardhat");
 
 const tokens = (n) => {
-  return ethers.parseUnits(n.toString(), "ether");
+  return ethers.utils.parseUnits(n.toString(), "ether");
 };
 
 describe("BrickStack MVP - VoteEscrow", function () {
@@ -40,13 +40,13 @@ describe("BrickStack MVP - VoteEscrow", function () {
     // Deploy escrow/vote
     const VoteEscrow = await ethers.getContractFactory("VoteEscrow");
     voteEscrow = await VoteEscrow.deploy(
-      await property.getAddress(),
-      await governance.getAddress(),
+      property.address,
+      governance.address,
       0 // min governance balance for ease in tests
     );
 
     // Wire minting, whitelist
-    await property.setEscrow(await voteEscrow.getAddress());
+    await property.setEscrow(voteEscrow.address);
     await property.setWhitelisted(deployer.address, true);
     await property.setWhitelisted(seller.address, true);
     await property.setWhitelisted(investor1.address, true);
@@ -86,14 +86,14 @@ describe("BrickStack MVP - VoteEscrow", function () {
     const sellerBalanceAfter = await ethers.provider.getBalance(
       seller.address
     );
-    expect(sellerBalanceAfter - sellerBalanceBefore).to.equal(tokens(1));
+    expect(sellerBalanceAfter.sub(sellerBalanceBefore)).to.equal(tokens(1));
 
     // investors claim shares automatically in triggerBuy (minted)
     expect(await property.balanceOf(investor1.address, propertyId)).to.equal(
-      5
+      ethers.BigNumber.from(5)
     );
     expect(await property.balanceOf(investor2.address, propertyId)).to.equal(
-      5
+      ethers.BigNumber.from(5)
     );
   });
 
@@ -106,11 +106,13 @@ describe("BrickStack MVP - VoteEscrow", function () {
     await voteEscrow.cancelProperty(propertyId);
     const tx = await voteEscrow.connect(investor1).refund(propertyId);
     const receipt = await tx.wait();
-    const gasUsed = receipt.gasUsed * receipt.gasPrice;
+    const gasUsed = receipt.gasUsed;
+    const effectiveGasPrice = receipt.effectiveGasPrice || receipt.gasPrice;
+    const fee = gasUsed.mul(effectiveGasPrice);
 
     const balAfter = await ethers.provider.getBalance(investor1.address);
-    // balAfter ≈ balBefore + 0.2 ETH - gas
-    expect(balAfter + gasUsed - balBefore).to.equal(tokens(0.2));
+    // balAfter ≈ balBefore + 0.2 ETH - fee
+    expect(balAfter.add(fee).sub(balBefore)).to.equal(tokens(0.2));
   });
 });
 

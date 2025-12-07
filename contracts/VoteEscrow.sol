@@ -3,24 +3,18 @@ pragma solidity ^0.8.20;
 
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
-import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
-import "./Property.sol";
 
-/**
- * @title VoteEscrow
- * @dev Escrow + simple governance check for BrickStack.
- *
- * Flow for each propertyId:
- *  - Owner calls proposeProperty(...) to set seller, target price, description, deadline.
- *  - Governance token holders call voteAndLock(propertyId, amountWei) sending ETH.
- *      * Requires governanceToken.balanceOf(msg.sender) >= minGovBalance.
- *      * Requires amountWei == msg.value and is multiple of sharePrice.
- *  - When ready, DAO/owner calls triggerBuy(propertyId) if totalLocked >= targetPriceWei:
- *      * Sends all locked ETH to seller.
- *      * Mints ERC1155 property shares pro-rata based on locked ETH.
- *  - If the deal is cancelled, owner calls cancelProperty(propertyId).
- *      * Then investors can call refund(propertyId) to get their locked ETH back.
- */
+interface IPropertyToken {
+    function properties(uint256 id) external view returns (bool, uint256, uint256, uint16, string memory);
+    function isWhitelisted(address account) external view returns (bool);
+    function mintShares(uint256 id, address to, uint256 amount) external;
+    function sharePriceWei(uint256 id) external view returns (uint256);
+}
+
+interface IGov {
+    function balanceOf(address account) external view returns (uint256);
+}
+
 contract VoteEscrow is Ownable, ReentrancyGuard {
     struct Proposal {
         bool exists;
@@ -33,240 +27,39 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
         bool successful;
     }
 
-    Property public immutable propertyToken;
-    IERC20 public immutable governanceToken;
+    IPropertyToken public propertyToken;
+    IGov public governance;
     uint256 public minGovBalance;
 
     mapping(uint256 => Proposal) public proposals;
-    mapping(uint256 => address[]) public investors;
     mapping(uint256 => mapping(address => uint256)) public lockedAmount;
+    mapping(uint256 => address[]) public investors;
+    mapping(uint256 => mapping(address => bool)) public isInvestor;
 
-    // --- Simple registry for multi-property listing ---
     uint256[] private _allPropertyIds;
     mapping(uint256 => bool) private _propertyKnown;
     mapping(uint256 => bool) private _isActive;
 
-    event PropertyProposed(
-        uint256 indexed propertyId,
-        address indexed seller,
-        uint256 targetPriceWei,
-        uint256 deadline,
-        string description
-    );
+    event PropertyProposed(uint256 indexed propertyId, address indexed seller, uint256 targetWei, uint256 deadline, string description);
+    event VoteLocked(uint256 indexed propertyId, address indexed investor, uint256 amountWei);
+    event BuyTriggered(uint256 indexed propertyId, uint256 totalPaidWei);
+    event ProposalFinalized(uint256 indexed propertyId, bool successful);
+    event Refunded(uint256 indexed propertyId, address indexed investor, uint256 amount);
 
-    event VoteLocked(
-        uint256 indexed propertyId,
-        address indexed investor,
-        uint256 amountWei
-    );
-
-    event BuyTriggered(
-        uint256 indexed propertyId,
-        uint256 totalPaidWei
-    );
-
-    event PropertyCancelled(uint256 indexed propertyId);
-
-    event ProposalFinalized(uint256 indexed propertyId, bool success);
-
-    event Refunded(
-        uint256 indexed propertyId,
-        address indexed investor,
-        uint256 amountWei
-    );
-
-    function idFromAddress(address propertyAddress) public pure returns (uint256) {
-        return uint256(uint160(propertyAddress));
-    }
-
-    constructor(
-        address propertyToken_,
-        address governanceToken_,
-        uint256 minGovBalance_
-    ) Ownable(msg.sender) {
-        require(propertyToken_ != address(0), "VoteEscrow: propertyToken zero");
-        require(governanceToken_ != address(0), "VoteEscrow: governanceToken zero");
-
-        propertyToken = Property(propertyToken_);
-        governanceToken = IERC20(governanceToken_);
+    constructor(address property_, address governance_, uint256 minGovBalance_) Ownable(msg.sender) {
+        propertyToken = IPropertyToken(property_);
+        governance = IGov(governance_);
         minGovBalance = minGovBalance_;
     }
 
-    function setMinGovBalance(uint256 newMin) external onlyOwner {
-        minGovBalance = newMin;
-    }
-
-    function proposeProperty(
-        uint256 propertyId,
-        address seller,
-        uint256 targetPriceWei,
-        uint256 deadline,
-        string calldata description
-    ) external onlyOwner {
-        require(seller != address(0), "VoteEscrow: seller zero");
-        require(targetPriceWei > 0, "VoteEscrow: targetPrice zero");
-        require(deadline > block.timestamp, "VoteEscrow: deadline in past");
-
-        Property.PropertyInfo memory info = propertyToken.propertyMetadata(propertyId);
-        require(info.exists, "VoteEscrow: unknown property");
-
-        Proposal storage p = proposals[propertyId];
-        require(!p.exists, "VoteEscrow: proposal already exists");
-
-        p.exists = true;
-        p.seller = seller;
-        p.targetPriceWei = targetPriceWei;
-        p.description = description;
-        p.deadline = deadline;
-        p.totalLocked = 0;
-        p.finalized = false;
-        p.successful = false;
-
-        // registry bookkeeping
+    function _registerProperty(uint256 propertyId) internal {
         if (!_propertyKnown[propertyId]) {
             _propertyKnown[propertyId] = true;
             _allPropertyIds.push(propertyId);
         }
         _isActive[propertyId] = true;
-
-        emit PropertyProposed(propertyId, seller, targetPriceWei, deadline, description);
     }
 
-    function proposePropertyByAddress(
-        address propertyAddress,
-        address seller,
-        uint256 targetPriceWei,
-        uint256 deadline,
-        string calldata description
-    ) external onlyOwner {
-        this.proposeProperty(idFromAddress(propertyAddress), seller, targetPriceWei, deadline, description);
-    }
-
-    function voteAndLock(uint256 propertyId, uint256 amountWei)
-        external
-        payable
-        nonReentrant
-    {
-        require(msg.value == amountWei, "VoteEscrow: amount != msg.value");
-
-        Proposal storage p = proposals[propertyId];
-        require(p.exists, "VoteEscrow: no proposal");
-        require(!p.finalized, "VoteEscrow: already finalized");
-        require(block.timestamp <= p.deadline, "VoteEscrow: voting closed");
-        require(amountWei > 0, "VoteEscrow: zero amount");
-
-        require(
-            governanceToken.balanceOf(msg.sender) >= minGovBalance,
-            "VoteEscrow: insufficient governance tokens"
-        );
-
-        uint256 sharePrice = propertyToken.sharePriceWei(propertyId);
-        require(sharePrice > 0, "VoteEscrow: share price not set");
-        require(
-            amountWei % sharePrice == 0,
-            "VoteEscrow: amount not multiple of sharePrice"
-        );
-
-        uint256 sharesRequested = amountWei / sharePrice;
-
-        uint256 currentSupply = propertyToken.totalSupply(propertyId);
-        uint256 max = propertyToken.maxShares(propertyId);
-        require(
-            currentSupply + sharesRequested <= max,
-            "VoteEscrow: exceeds maxShares"
-        );
-
-        if (lockedAmount[propertyId][msg.sender] == 0) {
-            investors[propertyId].push(msg.sender);
-        }
-
-        lockedAmount[propertyId][msg.sender] += amountWei;
-        p.totalLocked += amountWei;
-
-        emit VoteLocked(propertyId, msg.sender, amountWei);
-    }
-
-    function triggerBuy(uint256 propertyId) external nonReentrant onlyOwner {
-        Proposal storage p = proposals[propertyId];
-        require(p.exists, "VoteEscrow: no proposal");
-        require(!p.finalized, "VoteEscrow: already finalized");
-        require(
-            p.totalLocked >= p.targetPriceWei,
-            "VoteEscrow: funding below target"
-        );
-
-        p.finalized = true;
-        p.successful = true;
-
-        uint256 totalToSend = p.totalLocked;
-
-        (bool ok, ) = p.seller.call{value: totalToSend}("");
-        require(ok, "VoteEscrow: seller transfer failed");
-
-        uint256 sharePrice = propertyToken.sharePriceWei(propertyId);
-        address[] storage addrs = investors[propertyId];
-
-        for (uint256 i = 0; i < addrs.length; i++) {
-            address investor = addrs[i];
-            uint256 amount = lockedAmount[propertyId][investor];
-            if (amount == 0) continue;
-
-            uint256 shares = amount / sharePrice;
-            lockedAmount[propertyId][investor] = 0;
-
-            if (shares > 0) {
-                propertyToken.mintShares(propertyId, investor, shares);
-            }
-        }
-
-        emit BuyTriggered(propertyId, totalToSend);
-        if (_isActive[propertyId]) {
-            _isActive[propertyId] = false;
-        }
-        emit ProposalFinalized(propertyId, true);
-    }
-
-    function cancelProperty(uint256 propertyId) external onlyOwner {
-        Proposal storage p = proposals[propertyId];
-        require(p.exists, "VoteEscrow: no proposal");
-        require(!p.finalized, "VoteEscrow: already finalized");
-
-        p.finalized = true;
-        p.successful = false;
-
-        emit PropertyCancelled(propertyId);
-        if (_isActive[propertyId]) {
-            _isActive[propertyId] = false;
-        }
-        emit ProposalFinalized(propertyId, false);
-    }
-
-    function refund(uint256 propertyId) external nonReentrant {
-        Proposal storage p = proposals[propertyId];
-        require(p.exists, "VoteEscrow: no proposal");
-        require(p.finalized, "VoteEscrow: not finalized");
-        require(!p.successful, "VoteEscrow: deal successful, no refunds");
-
-        uint256 amount = lockedAmount[propertyId][msg.sender];
-        require(amount > 0, "VoteEscrow: nothing to refund");
-
-        // Decrease totalLocked to reflect funds being withdrawn post-cancellation
-        // Safe underflow due to bounds enforced above
-        if (p.totalLocked >= amount) {
-            p.totalLocked -= amount;
-        } else {
-            p.totalLocked = 0;
-        }
-
-        lockedAmount[propertyId][msg.sender] = 0;
-
-        (bool ok, ) = msg.sender.call{value: amount}("");
-        require(ok, "VoteEscrow: refund transfer failed");
-
-        emit Refunded(propertyId, msg.sender, amount);
-    }
-
-    // --- Registry views ---
     function getAllPropertyIds() external view returns (uint256[] memory) {
         return _allPropertyIds;
     }
@@ -274,72 +67,155 @@ contract VoteEscrow is Ownable, ReentrancyGuard {
     function getActivePropertyIds() external view returns (uint256[] memory ids) {
         uint256 len = _allPropertyIds.length;
         uint256 count;
-        for (uint256 i = 0; i < len; i++) {
-            if (_isActive[_allPropertyIds[i]]) {
-                count++;
-            }
+        for (uint256 i; i < len; ++i) {
+            if (_isActive[_allPropertyIds[i]]) count++;
         }
         ids = new uint256[](count);
         uint256 idx;
-        for (uint256 i = 0; i < len; i++) {
-            uint256 id = _allPropertyIds[i];
-            if (_isActive[id]) {
-                ids[idx++] = id;
+        for (uint256 i; i < len; ++i) {
+            uint256 pid = _allPropertyIds[i];
+            if (_isActive[pid]) {
+                ids[idx++] = pid;
             }
         }
     }
 
-    function getProposal(uint256 propertyId)
-        external
-        view
-        returns (
-            bool exists,
-            address seller,
-            uint256 targetPriceWei,
-            string memory description,
-            uint256 totalLocked,
-            uint256 deadline,
-            bool finalized,
-            bool successful
-        )
-    {
+    function _propose(uint256 propertyId, address seller, uint256 targetWei, uint256 deadline, string calldata description) internal {
+        require(seller != address(0), "seller=0");
+        require(targetWei > 0, "target=0");
+        require(deadline > block.timestamp, "deadline past");
+        (bool exists,, , ,) = propertyToken.properties(propertyId);
+        require(exists, "unknown property");
+        Proposal storage p = proposals[propertyId];
+        require(!p.exists, "already proposed");
+        p.exists = true;
+        p.seller = seller;
+        p.targetPriceWei = targetWei;
+        p.description = description;
+        p.deadline = deadline;
+        p.totalLocked = 0;
+        p.finalized = false;
+        p.successful = false;
+        _registerProperty(propertyId);
+        emit PropertyProposed(propertyId, seller, targetWei, deadline, description);
+    }
+
+    function proposeProperty(uint256 propertyId, address seller, uint256 targetWei, uint256 deadline, string calldata description) external onlyOwner {
+        _propose(propertyId, seller, targetWei, deadline, description);
+    }
+
+    function proposePropertyByAddress(address /*propertyAddress*/, address seller, uint256 targetWei, uint256 deadline, string calldata description) external onlyOwner {
+        // For compatibility; propertyId should be passed by frontend via idFromPropertyKey
+        revert("use proposeProperty");
+    }
+
+    function getProposal(uint256 propertyId) external view returns (
+        bool, address, uint256, string memory, uint256, uint256, bool, bool
+    ) {
         Proposal memory p = proposals[propertyId];
-        return (
-            p.exists,
-            p.seller,
-            p.targetPriceWei,
-            p.description,
-            p.totalLocked,
-            p.deadline,
-            p.finalized,
-            p.successful
-        );
+        return (p.exists, p.seller, p.targetPriceWei, p.description, p.totalLocked, p.deadline, p.finalized, p.successful);
     }
 
-    function getProposalByAddress(address propertyAddress)
-        external
-        view
-        returns (
-            bool exists,
-            address seller,
-            uint256 targetPriceWei,
-            string memory description,
-            uint256 totalLocked,
-            uint256 deadline,
-            bool finalized,
-            bool successful
-        )
-    {
-        return this.getProposal(idFromAddress(propertyAddress));
+    // Typed struct return for frontend/indexer convenience
+    function getProposalStruct(uint256 propertyId) external view returns (Proposal memory) {
+        return proposals[propertyId];
     }
 
-    receive() external payable {
-        revert("VoteEscrow: use voteAndLock");
+    // User position helper: returns locked ETH and allocated shares for a user
+    struct UserPosition {
+        uint256 lockedWei;
+        uint256 allocatedShares;
     }
 
-    fallback() external payable {
-        revert("VoteEscrow: invalid call");
+    function getUserPosition(uint256 propertyId, address user) external view returns (UserPosition memory) {
+        uint256 locked = lockedAmount[propertyId][user];
+        uint256 price = propertyToken.sharePriceWei(propertyId);
+        uint256 shares = price > 0 ? locked / price : 0;
+        return UserPosition({ lockedWei: locked, allocatedShares: shares });
+    }
+
+    function voteAndLock(uint256 propertyId, uint256 amountWei) external payable {
+        Proposal storage p = proposals[propertyId];
+        require(p.exists, "no proposal");
+        require(!p.finalized, "finalized");
+        require(block.timestamp <= p.deadline, "deadline passed");
+        require(msg.value == amountWei && amountWei > 0, "invalid value");
+        require(governance.balanceOf(msg.sender) >= minGovBalance, "insufficient gov");
+        // Optional whitelist check - ensure receiver can receive shares later
+        require(propertyToken.isWhitelisted(msg.sender), "not whitelisted");
+
+        lockedAmount[propertyId][msg.sender] += amountWei;
+        p.totalLocked += amountWei;
+
+        if (!isInvestor[propertyId][msg.sender]) {
+            isInvestor[propertyId][msg.sender] = true;
+            investors[propertyId].push(msg.sender);
+        }
+
+        emit VoteLocked(propertyId, msg.sender, amountWei);
+    }
+
+    function triggerBuy(uint256 propertyId) external onlyOwner nonReentrant {
+        Proposal storage p = proposals[propertyId];
+        require(p.exists, "no proposal");
+        require(!p.finalized, "finalized");
+        require(p.totalLocked >= p.targetPriceWei, "target not met");
+
+        uint256 price = propertyToken.sharePriceWei(propertyId);
+        require(price > 0, "price=0");
+
+        // Mint shares to investors (proportional to their deposits)
+        address[] memory list = investors[propertyId];
+        for (uint256 i = 0; i < list.length; i++) {
+            address inv = list[i];
+            uint256 amount = lockedAmount[propertyId][inv];
+            if (amount > 0) {
+                uint256 shares = amount / price;
+                if (shares > 0) {
+                    propertyToken.mintShares(propertyId, inv, shares);
+                }
+                lockedAmount[propertyId][inv] = 0;
+            }
+        }
+
+        // Payout ETH to seller
+        uint256 payout = p.totalLocked;
+        p.totalLocked = 0;
+        (bool ok,) = p.seller.call{value: payout}("");
+        require(ok, "payout failed");
+
+        p.finalized = true;
+        p.successful = true;
+        _isActive[propertyId] = false;
+        emit BuyTriggered(propertyId, payout);
+        emit ProposalFinalized(propertyId, true);
+    }
+
+    function cancelProperty(uint256 propertyId) external onlyOwner {
+        Proposal storage p = proposals[propertyId];
+        require(p.exists, "no proposal");
+        require(!p.finalized, "finalized");
+        p.finalized = true;
+        p.successful = false;
+        _isActive[propertyId] = false;
+        emit ProposalFinalized(propertyId, false);
+    }
+
+    function refund(uint256 propertyId) external nonReentrant {
+        Proposal storage p = proposals[propertyId];
+        require(p.exists, "no proposal");
+        require(p.finalized && !p.successful, "not refundable");
+        uint256 amount = lockedAmount[propertyId][msg.sender];
+        require(amount > 0, "nothing to refund");
+        // adjust totals
+        if (p.totalLocked >= amount) {
+            p.totalLocked -= amount;
+        } else {
+            p.totalLocked = 0;
+        }
+        lockedAmount[propertyId][msg.sender] = 0;
+        (bool ok,) = msg.sender.call{value: amount}("");
+        require(ok, "refund failed");
+        emit Refunded(propertyId, msg.sender, amount);
     }
 }
-
-

@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { parseEther } from "viem";
 import { baseSepolia } from "wagmi/chains";
@@ -55,7 +55,7 @@ export default function NewPropertyPage() {
           args: [pid, max, sharePriceWei, ybps, propertyLabel],
           chain: baseSepolia,
           gas: 500000n
-        },
+        } as any,
         {
           onSuccess: (hash) => { setCreateHash(hash); toast.loading("Creating ERC-1155 series…", { id: `cp-${hash}` }); },
           onError: () => {
@@ -87,7 +87,7 @@ export default function NewPropertyPage() {
         args: [payload.pid, sellerAddr, payload.targetWei, payload.deadline, payload.description],
         chain: baseSepolia,
         gas: 350000n
-      },
+      } as any,
       {
         onSuccess: (hash) => { setProposeHash(hash); toast.loading("Creating proposal…", { id: hash }); payloadRef.current = null; },
         onError: () => { toast.error("Failed to create proposal"); setSubmitting(false); }
@@ -95,21 +95,28 @@ export default function NewPropertyPage() {
     );
   }
 
-  useWaitForTransactionReceipt({
+  const { isSuccess: createSuccess, isError: createError } = useWaitForTransactionReceipt({
     hash: createHash,
-    onSuccess: () => {
-      if (createHash) toast.success("ERC-1155 created ✅", { id: `cp-${createHash}` });
-      submitProposal(payloadRef.current);
-    },
-    onError: () => {
-      setSubmitting(false);
-    }
   });
 
-  useWaitForTransactionReceipt({
+  const { isSuccess: proposeSuccess, isError: proposeError } = useWaitForTransactionReceipt({
     hash: proposeHash,
-    onSuccess: () => {
-      if (proposeHash) toast.success("Proposal created ✅", { id: proposeHash });
+  });
+
+  useEffect(() => {
+    if (createSuccess && createHash) {
+      toast.success("ERC-1155 created ✅", { id: `cp-${createHash}` });
+      submitProposal(payloadRef.current);
+    }
+    if (createError) {
+      setSubmitting(false);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [createSuccess, createError, createHash]);
+
+  useEffect(() => {
+    if (proposeSuccess && proposeHash) {
+      toast.success("Proposal created ✅", { id: proposeHash });
       setSubmitting(false);
       // Nudge the UI to reflect the new deal immediately with a cache-busting qs
       setTimeout(() => {
@@ -117,9 +124,12 @@ export default function NewPropertyPage() {
           window.location.assign(`/admin/properties?r=${Date.now()}`);
         } catch {}
       }, 300);
-    },
-    onError: () => { if (proposeHash) toast.error("Proposal failed", { id: proposeHash }); setSubmitting(false); }
-  });
+    }
+    if (proposeError && proposeHash) {
+      toast.error("Proposal failed", { id: proposeHash });
+      setSubmitting(false);
+    }
+  }, [proposeSuccess, proposeError, proposeHash]);
 
   return (
     <main className="mx-auto max-w-3xl px-4 py-10 space-y-4">

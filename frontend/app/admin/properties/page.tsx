@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useAccount, useReadContract } from "wagmi";
 import { formatEther } from "viem";
 import { PROPERTY_ADDRESS, VOTE_ESCROW_ADDRESS, propertyAbi, voteEscrowAbi } from "../../../lib/contracts";
@@ -39,6 +40,9 @@ export default function PropertiesAdminPage() {
         <div className="flex items-center justify-between">
           <p className="text-xs text-gray-500">Overview of all ERC-1155 property IDs, deal config, and raise status.</p>
           <div className="flex items-center gap-2">
+            <Link href="/admin/access" className="text-xs rounded px-2 py-1 border bg-white hover:bg-gray-50">
+              Whitelist & Gov
+            </Link>
             <span className="text-[10px] text-gray-400">Last refresh: {new Date().toLocaleTimeString()}</span>
             <button
               onClick={() => { try { window.location.assign(`/admin/properties?r=${Date.now()}`); } catch {} }}
@@ -51,7 +55,16 @@ export default function PropertiesAdminPage() {
       </header>
 
       {ids.length === 0 ? (
-        <p className="text-sm text-gray-500">No properties yet.</p>
+        <div className="rounded-3xl border border-dashed border-mirage/15 bg-white p-4">
+          <p className="text-sm font-semibold text-mirage">No properties on-chain yet.</p>
+          <p className="mt-1 text-[11px] text-mirage/60">
+            Use{" "}
+            <Link href="/admin/listing/new" className="text-blaze underline">
+              New listing
+            </Link>{" "}
+            to create your first ERC-1155 property and funding proposal.
+          </p>
+        </div>
       ) : (
         <table className="w-full text-xs border border-gray-200 rounded-md overflow-hidden">
           <thead className="bg-gray-50">

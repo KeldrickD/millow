@@ -1,3 +1,3 @@
-export { default } from "../../listing/new/page";
+export { default } from "../listing/new/page";
 
 

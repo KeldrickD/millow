@@ -105,7 +105,7 @@ async function main() {
 
   // Deploy MockUSDC (rent token) and Yield vault
   const MockUSDC = await hre.ethers.getContractFactory("MockUSDC");
-  const usdc = await MockUSDC.deploy();
+  const usdc = await MockUSDC.deploy("Mock USDC", "mUSDC", 6);
   await waitDeployed(usdc);
   console.log(`MockUSDC deployed at: ${await resolveAddress(usdc)}`);
 

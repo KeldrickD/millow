@@ -5,17 +5,17 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract MockUSDC is ERC20, Ownable {
-    constructor() ERC20("Mock USDC", "USDC") Ownable(msg.sender) {
-        _mint(msg.sender, 1_000_000_000 * 10 ** decimals()); // 1B for tests
+    uint8 private immutable _decimals = 6;
+
+    constructor(string memory name_, string memory symbol_, uint8 decimals_) ERC20(name_, symbol_) Ownable(msg.sender) {
+        // allow passing decimals_ for compatibility; ignore and use 6 by default
     }
 
-    function decimals() public pure override returns (uint8) {
-        return 6;
+    function decimals() public view override returns (uint8) {
+        return _decimals;
     }
 
     function mint(address to, uint256 amount) external onlyOwner {
         _mint(to, amount);
     }
 }
-
-

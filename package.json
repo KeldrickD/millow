@@ -26,12 +26,6 @@
     "frontend:build": "npm --prefix frontend run build",
     "frontend:start": "npm --prefix frontend run start"
   },
-  "eslintConfig": {
-    "extends": [
-      "react-app",
-      "react-app/jest"
-    ]
-  },
   "browserslist": {
     "production": [
       ">0.2%",

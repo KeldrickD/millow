@@ -88,7 +88,7 @@ export default function SimulatePage() {
     if (!address) return;
     const amount = parseUnits("1000", usdcDecimals);
     writeContract(
-      { address: MOCK_USDC_ADDRESS as `0x${string}`, abi: mockUsdcAbi as any, functionName: "mint", args: [address, amount], chain: baseSepolia, gas: 100000n },
+      { address: MOCK_USDC_ADDRESS as `0x${string}`, abi: mockUsdcAbi as any, functionName: "mint", args: [address, amount], chain: baseSepolia, gas: 100000n } as any,
       { onSuccess: (hash) => { setMintHash(hash); toast.loading("Minting test USDC…", { id: hash }); }, onError: () => toast.error("Mint failed") }
     );
   }
@@ -97,7 +97,7 @@ export default function SimulatePage() {
     if (!address || !YIELD_VAULT_ADDRESS) return;
     const amount = parseUnits("1000000", usdcDecimals);
     writeContract(
-      { address: MOCK_USDC_ADDRESS as `0x${string}`, abi: mockUsdcAbi as any, functionName: "approve", args: [YIELD_VAULT_ADDRESS, amount], chain: baseSepolia, gas: 120000n },
+      { address: MOCK_USDC_ADDRESS as `0x${string}`, abi: mockUsdcAbi as any, functionName: "approve", args: [YIELD_VAULT_ADDRESS, amount], chain: baseSepolia, gas: 120000n } as any,
       { onSuccess: (hash) => { setApproveHash(hash); toast.loading("Approving USDC for YieldVault…", { id: hash }); }, onError: () => toast.error("USDC approve failed") }
     );
   }
@@ -115,7 +115,7 @@ export default function SimulatePage() {
       if (!sellerAddr) { toast.error("Seller address required (or connect wallet)"); return; }
 
       writeContract(
-        { address: PROPERTY_ADDRESS as `0x${string}`, abi: propertyAbi as any, functionName: "createProperty", args: [id, max, sharePriceWei, BigInt(yieldBps), label], chain: baseSepolia, gas: 500000n },
+        { address: PROPERTY_ADDRESS as `0x${string}`, abi: propertyAbi as any, functionName: "createProperty", args: [id, max, sharePriceWei, BigInt(yieldBps), label], chain: baseSepolia, gas: 500000n } as any,
         { onSuccess: (hash) => { setCreateHash(hash); toast.loading("Creating ERC-1155 test property…", { id: hash }); }, onError: () => toast.error("Failed to create property") }
       );
 
@@ -138,7 +138,7 @@ export default function SimulatePage() {
       if (!payload) { setProposing(false); return; }
       const { id, sellerAddr, targetWei, deadline, description } = payload;
       writeContract(
-        { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "proposeProperty", args: [id, sellerAddr, targetWei, deadline, description], chain: baseSepolia, gas: 350000n },
+        { address: VOTE_ESCROW_ADDRESS as `0x${string}`, abi: voteEscrowAbi as any, functionName: "proposeProperty", args: [id, sellerAddr, targetWei, deadline, description], chain: baseSepolia, gas: 350000n } as any,
         { onSuccess: (hash) => { setProposeHash(hash); toast.loading("Creating test proposal…", { id: hash }); setProposing(false); }, onError: () => { toast.error("Failed to create proposal"); setProposing(false); } }
       );
     },
@@ -167,7 +167,7 @@ export default function SimulatePage() {
       const id = idFromPropertyKey(label);
       const amount = parseUnits(yieldAmount, usdcDecimals);
       writeContract(
-        { address: YIELD_VAULT_ADDRESS as `0x${string}`, abi: yieldVaultAbi as any, functionName: "depositYield", args: [id, amount], chain: baseSepolia, gas: 180000n },
+        { address: YIELD_VAULT_ADDRESS as `0x${string}`, abi: yieldVaultAbi as any, functionName: "depositYield", args: [id, amount], chain: baseSepolia, gas: 180000n } as any,
         { onSuccess: (hash) => { setYieldHash(hash); toast.loading("Depositing test yield…", { id: hash }); }, onError: () => toast.error("Failed to deposit yield") }
       );
     } catch { toast.error("Invalid yield amount"); }

@@ -1,21 +1,19 @@
 "use client";
 
 import { useRef, useState, useEffect } from "react";
-import { useAccount, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { useAccount } from "wagmi";
 import { parseEther } from "viem";
 import {
-  PROPERTY_ADDRESS,
-  VOTE_ESCROW_ADDRESS,
-  propertyAbi,
-  voteEscrowAbi
+  PROPERTY_ADDRESS
 } from "../../../../lib/contracts";
 import { idFromPropertyKey } from "../../../../lib/slug";
 import toast from "react-hot-toast";
 import { uploadImages, uploadMetadata } from "../../../../lib/upload";
+import { useCreateListing } from "../../../../hooks/useCreateListing";
 
 export default function NewListingPage() {
   const { address } = useAccount();
+  const { start, inFlight } = useCreateListing();
 
   // Listing form state
   const [label, setLabel] = useState("");
@@ -40,46 +38,12 @@ export default function NewListingPage() {
     setFiles(f);
   }
 
-  // Tx state
-  const { writeContract, isPending } = useWriteContract();
-  const [creatingHash, setCreatingHash] = useState<`0x${string}` | undefined>();
-  const [proposeHash, setProposeHash] = useState<`0x${string}` | undefined>();
-  const [submitting, setSubmitting] = useState(false);
-
-  const { isLoading: isCreatingConfirming } = useWaitForTransactionReceipt({
-    hash: creatingHash,
-    onSuccess() {
-      if (creatingHash) toast.success("ERC-1155 created ✅", { id: `cp-${creatingHash}` });
-      submitProposal();
-    },
-    onError() {
-      setSubmitting(false);
-    }
-  });
-
-  const { isLoading: isProposalConfirming } = useWaitForTransactionReceipt({
-    hash: proposeHash,
-    onSuccess() {
-      if (proposeHash) toast.success("Proposal created ✅", { id: proposeHash });
-      setSubmitting(false);
-      setTimeout(() => {
-        try {
-          window.location.assign(`/admin/properties?r=${Date.now()}`);
-        } catch {}
-      }, 300);
-    },
-    onError() {
-      setSubmitting(false);
-    }
-  });
-
   async function onSubmit() {
     try {
-      setSubmitting(true);
-
       // 1) Upload images and metadata to IPFS
       let imageUris: string[] = [];
       if (files.length > 0) {
+        toast.loading("Uploading images…", { id: "upload" });
         imageUris = await uploadImages(files);
       }
       const metadata = {
@@ -96,73 +60,36 @@ export default function NewListingPage() {
         version: 1
       };
       const metadataURI = await uploadMetadata(metadata);
+      toast.success("Metadata uploaded ✅", { id: "upload" });
 
       const pid = idFromPropertyKey(label);
       const sharePriceWei = parseEther(sharePriceEth);
-      const max = BigInt(maxShares);
-      const ybps = Number(yieldBps);
+      const max = BigInt(maxShares || "0");
+      const ybps = Number(yieldBps || "0");
 
-      writeContract(
-        {
-          address: PROPERTY_ADDRESS as `0x${string}`,
-          abi: propertyAbi as any,
-          functionName: "createProperty",
-          args: [pid, max, sharePriceWei, ybps, metadataURI],
-          chain: baseSepolia,
-          gas: 500000n
-        },
-        {
-          onSuccess(hash) {
-            setCreatingHash(hash);
-            toast.loading("Creating ERC-1155 series…", { id: `cp-${hash}` });
-          },
-          onError() {
-            // If already exists, still send proposal
-            submitProposal();
-          }
-        }
-      );
-    } catch (e) {
-      console.error(e);
-      toast.error("Invalid input");
-      setSubmitting(false);
-    }
-  }
+      const targetWei = parseEther(targetEth || "0");
+      const deadline = BigInt(Math.floor(Date.now() / 1000) + Number(days || "0") * 24 * 60 * 60);
 
-  function submitProposal() {
-    try {
-      const pid = idFromPropertyKey(label);
-      const targetWei = parseEther(targetEth);
-      const deadline = BigInt(Math.floor(Date.now() / 1000) + Number(days) * 24 * 60 * 60);
       const sellerAddr =
         seller && seller.trim().length > 0
           ? (seller as `0x${string}`)
           : ((address as `0x${string}` | undefined) ?? "0x0000000000000000000000000000000000000000");
 
-      writeContract(
-        {
-          address: VOTE_ESCROW_ADDRESS as `0x${string}`,
-          abi: voteEscrowAbi as any,
-          functionName: "proposeProperty",
-          args: [pid, sellerAddr, targetWei, deadline, description || label],
-          chain: baseSepolia,
-          gas: 350000n
-        },
-        {
-          onSuccess(hash) {
-            setProposeHash(hash);
-            toast.loading("Creating proposal…", { id: hash });
-          },
-          onError() {
-            toast.error("Failed to create proposal");
-            setSubmitting(false);
-          }
-        }
-      );
+      start({
+        propertyId: pid,
+        seller: sellerAddr,
+        targetWei,
+        deadline,
+        description: description || label,
+        maxShares: max,
+        sharePriceWei,
+        yieldBps: ybps,
+        metadataURI,
+        labelForRoute: label
+      });
     } catch (e) {
       console.error(e);
       toast.error("Invalid input");
-      setSubmitting(false);
     }
   }
 
@@ -179,7 +106,11 @@ export default function NewListingPage() {
         <div className="flex gap-3 flex-wrap">
           {files.map((f, i) => (
             <div key={i} className="h-24 w-32 rounded-lg overflow-hidden bg-mirage/5 border border-white">
-              <img src={URL.createObjectURL(f)} className="h-full w-full object-cover" />
+              <img
+                src={URL.createObjectURL(f)}
+                alt={`Preview ${i + 1}`}
+                className="h-full w-full object-cover"
+              />
             </div>
           ))}
           <button
@@ -240,11 +171,11 @@ export default function NewListingPage() {
         <div className="flex gap-3 pt-2">
           <button
             type="button"
-            disabled={isPending || submitting}
+            disabled={inFlight}
             onClick={onSubmit}
             className="rounded-md bg-blaze text-white px-4 py-2 text-sm disabled:bg-mirage/20"
           >
-            {isPending || submitting ? "Creating…" : "Create Listing (ERC‑1155 + Proposal)"}
+            {inFlight ? "Creating…" : "Create Listing (ERC‑1155 + Proposal)"}
           </button>
         </div>
       </section>

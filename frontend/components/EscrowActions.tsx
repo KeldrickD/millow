@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { baseSepolia } from "wagmi/chains";
 import { VOTE_ESCROW_ADDRESS, voteEscrowAbi } from "../lib/contracts";
 import toast from "react-hot-toast";
@@ -9,6 +9,7 @@ import toast from "react-hot-toast";
 export default function EscrowActions({ propertyId }: { propertyId: bigint }) {
   const pid = propertyId;
   const { address } = useAccount();
+  const chainId = useChainId();
   const [txHash, setTxHash] = useState<`0x${string}` | undefined>();
 
   // Deal state
@@ -41,6 +42,7 @@ export default function EscrowActions({ propertyId }: { propertyId: bigint }) {
   const { writeContract, isPending } = useWriteContract();
   const { isLoading: isConfirming, isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash: txHash });
   const busy = isPending || isConfirming;
+  const wrongChain = chainId !== undefined && chainId !== baseSepolia.id && chainId !== 8453;
 
   function handleTriggerBuy() {
     if (!isAdmin) return;
@@ -71,22 +73,26 @@ export default function EscrowActions({ propertyId }: { propertyId: bigint }) {
 
       {!finalized && isAdmin && (
         <div className="space-y-2">
-          <button type="button" onClick={handleTriggerBuy} disabled={busy} className="w-full rounded-md bg-emerald-600 text-white py-2 disabled:bg-gray-300">
+          <button type="button" onClick={handleTriggerBuy} disabled={busy || wrongChain} className="w-full rounded-md bg-emerald-600 text-white py-2 disabled:bg-gray-300">
             {busy ? "Processing..." : "Trigger Buy (Finalize Deal)"}
           </button>
-          <button type="button" onClick={handleCancel} disabled={busy} className="w-full rounded-md bg-red-500 text-white py-2 disabled:bg-gray-300">
+          <button type="button" onClick={handleCancel} disabled={busy || wrongChain} className="w-full rounded-md bg-red-500 text-white py-2 disabled:bg-gray-300">
             {busy ? "Processing..." : "Cancel Deal"}
           </button>
           <p className="text-xs text-gray-500">Only the contract owner can see these buttons.</p>
+          {wrongChain && <p className="text-[11px] text-red-500">Wrong network. Switch to Base or Base Sepolia.</p>}
         </div>
       )}
 
       {finalized && !successful && (
         <div className="space-y-2">
-          <button type="button" onClick={handleRefund} disabled={busy} className="w-full rounded-md bg-orange-500 text-white py-2 disabled:bg-gray-300">
-            {busy ? "Processing..." : "Claim Refund"}
+          <button type="button" onClick={handleRefund} disabled={busy || wrongChain} className="w-full rounded-md bg-orange-500 text-white py-2 disabled:bg-gray-300">
+            {busy ? "Processing..." : "Get refund"}
           </button>
-          <p className="text-xs text-gray-500">The raise was cancelled or failed. You can reclaim your locked ETH.</p>
+          <p className="text-[11px] text-gray-500">
+            If this deal failed or was cancelled, you can withdraw your locked ETH.
+          </p>
+          {wrongChain && <p className="text-[11px] text-red-500">Wrong network. Switch to Base or Base Sepolia.</p>}
         </div>
       )}
 
