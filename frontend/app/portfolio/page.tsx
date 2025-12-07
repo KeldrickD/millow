@@ -197,9 +197,9 @@ function Th({ children }: { children?: React.ReactNode }) {
   );
 }
 
-function Td({ children }: { children: React.ReactNode }) {
+function Td({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <td className="px-3 py-2 align-top text-[11px] text-mirage/80">
+    <td className={`px-3 py-2 align-top text-[11px] text-mirage/80 ${className ?? ""}`}>
       {children}
     </td>
   );
