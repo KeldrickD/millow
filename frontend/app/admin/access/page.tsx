@@ -111,6 +111,10 @@ export default function AccessAdminPage() {
   }, [govReceipt.isError, govTxHash]);
 
   function updateWhitelist(allowed: boolean) {
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
     if (!isOwner) {
       toast.error("Only the contract owner can whitelist wallets.");
       return;
@@ -129,7 +133,8 @@ export default function AccessAdminPage() {
         abi: propertyAbi as any,
         functionName: "setWhitelisted",
         args: [normalizedWl as `0x${string}`, allowed],
-        chain: baseSepolia
+        chain: baseSepolia,
+        account: address as `0x${string}`
       },
       {
         onSuccess: (hash) => {
@@ -159,6 +164,10 @@ export default function AccessAdminPage() {
       toast.error("Enter a valid recipient wallet.");
       return;
     }
+    if (!address) {
+      toast.error("Connect a wallet first.");
+      return;
+    }
     try {
       const value = parseUnits(amount || "0", decimals);
       writeContract(
@@ -167,7 +176,8 @@ export default function AccessAdminPage() {
           abi: erc20Abi as any,
           functionName: "transfer",
           args: [target as `0x${string}`, value],
-          chain: baseSepolia
+          chain: baseSepolia,
+          account: address as `0x${string}`
         },
         {
           onSuccess: (hash) => {
