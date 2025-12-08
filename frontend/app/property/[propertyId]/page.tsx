@@ -29,6 +29,7 @@ type PropertyMeta = {
   label: string;
   description?: string;
   images: string[];
+  yieldBps?: string;
   attributes?: {
     targetEth?: string;
     sharePriceEth?: string;
