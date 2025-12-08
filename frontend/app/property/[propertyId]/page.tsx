@@ -116,6 +116,11 @@ export default function PropertyPage() {
       : "–";
   const uiRaisedEth = chainRaisedEth || "0";
 
+  const displayTargetEth = uiTargetEth;
+  const displaySharePrice = uiSharePriceEth;
+  const displayMaxShares = uiMaxShares;
+  const displayYieldBps = yieldBps ? `${yieldBps} bps` : meta.yieldBps ? `${meta.yieldBps} bps` : "–";
+
   const progress =
     uiTargetEth && uiTargetEth !== "–"
       ? (() => {
