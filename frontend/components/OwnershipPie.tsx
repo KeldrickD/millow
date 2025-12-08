@@ -21,8 +21,8 @@ export default function OwnershipPie({ propertyId }: { propertyId: bigint }) {
     query: { enabled: !!address },
   } as any);
 
-  const total = BigInt(totalSupply ?? 0n);
-  const yours = BigInt(userBal ?? 0n);
+  const total = BigInt((totalSupply as bigint | undefined) ?? 0n);
+  const yours = BigInt((userBal as bigint | undefined) ?? 0n);
   const others = total > yours ? total - yours : 0n;
   const yourPct = total > 0n ? Number((yours * 10000n) / total) / 100 : 0;
 
