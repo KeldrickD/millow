@@ -41,17 +41,20 @@ export default function OneClickDepositButton({
     setIsMounted(true);
   }, []);
   const { writeContract, isPending } = useWriteContract();
-  const { isLoading: isConfirming } = useWaitForTransactionReceipt({
+  const receipt = useWaitForTransactionReceipt({
     hash: txHash,
-    onSuccess() {
-      if (!txHash) return;
+    query: { enabled: Boolean(txHash) }
+  });
+  useEffect(() => {
+    if (receipt.isSuccess && txHash) {
       toast.success("Deposit locked & vote recorded ✅", { id: txHash });
-    },
-    onError() {
-      if (!txHash) return;
+    }
+  }, [receipt.isSuccess, txHash]);
+  useEffect(() => {
+    if (receipt.isError && txHash) {
       toast.error("Transaction failed", { id: txHash });
     }
-  });
+  }, [receipt.isError, txHash]);
 
   const sharePriceMissing = sharePriceMissingOnChain || sharePriceWei === 0n;
   const remainingWei = targetWei > 0n && raisedWei < targetWei ? targetWei - raisedWei : 0n;
@@ -69,7 +72,7 @@ export default function OneClickDepositButton({
     overMax,
     remainingWei
   });
-  const loading = isPending || isConfirming;
+  const loading = isPending || receipt.isLoading;
 
   const sharePriceEth = sharePriceWei > 0n ? formatEther(sharePriceWei) : "0";
   const remainingEth = remainingWei > 0n ? formatEther(remainingWei) : "0";
