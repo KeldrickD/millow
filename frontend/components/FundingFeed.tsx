@@ -18,9 +18,10 @@ export default function FundingFeed() {
     abi: voteEscrowAbi as any,
     eventName: "VoteLocked",
     onLogs(logs) {
+      const typedLogs = logs as Array<{ args: any; transactionHash?: `0x${string}` }>;
       setItems((prev) => {
         const next = [...prev];
-        for (const log of logs) {
+        for (const log of typedLogs) {
           const args = log.args as any;
           next.unshift({
             type: "deposit",
@@ -41,9 +42,10 @@ export default function FundingFeed() {
     abi: voteEscrowAbi as any,
     eventName: "BuyTriggered",
     onLogs(logs) {
+      const typedLogs = logs as Array<{ args: any; transactionHash?: `0x${string}` }>;
       setItems((prev) => {
         const next = [...prev];
-        for (const log of logs) {
+        for (const log of typedLogs) {
           const args = log.args as any;
           next.unshift({
             type: "finalized",
