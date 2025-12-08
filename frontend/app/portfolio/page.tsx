@@ -205,9 +205,12 @@ function Td({ children, className }: { children: React.ReactNode; className?: st
   );
 }
 
-type DexTrade =
-  | Extract<import("../../lib/indexer").ActivityItem, { kind: "dex_buy" }>
-  | Extract<import("../../lib/indexer").ActivityItem, { kind: "dex_sell" }>;
+type DexTrade = {
+  kind: "dex_buy" | "dex_sell";
+  txHash?: string;
+  args: Record<string, any>;
+  propertyId?: bigint;
+};
 
 function hasTxHash(trade: DexTrade): trade is DexTrade & { txHash: string } {
   return typeof (trade as any).txHash === "string";
