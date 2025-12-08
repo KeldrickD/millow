@@ -9,8 +9,8 @@ export default function PortfolioPage() {
   const { address, positions, properties, rtoAgreements, loading, error } = usePortfolio();
   const { trades, loading: tradesLoading, hasWallet } = useMyTrades();
   const dexTrades = (trades ?? []).filter(
-    (t): t is DexTrade => t.kind === "dex_buy" || t.kind === "dex_sell"
-  );
+    (t) => t.kind === "dex_buy" || t.kind === "dex_sell"
+  ) as DexTrade[];
 
   if (!address) {
     return (
