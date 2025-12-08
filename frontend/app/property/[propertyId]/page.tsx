@@ -120,7 +120,8 @@ export default function PropertyPage() {
   const displayTargetEth = uiTargetEth;
   const displaySharePrice = uiSharePriceEth;
   const displayMaxShares = uiMaxShares;
-  const displayYieldBps = yieldBps ? `${yieldBps} bps` : meta.yieldBps ? `${meta.yieldBps} bps` : "–";
+  const metaYieldBps = (meta as any).yieldBps ?? meta.attributes?.yieldBps;
+  const displayYieldBps = yieldBps ? `${yieldBps} bps` : metaYieldBps ? `${metaYieldBps} bps` : "–";
 
   const progress =
     uiTargetEth && uiTargetEth !== "–"
