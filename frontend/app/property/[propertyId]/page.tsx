@@ -93,6 +93,7 @@ export default function PropertyPage() {
   const localImages = useLocalImages(propertyId);
   const label = meta.label || slugLabel || `Property #${propertyId.toString()}`;
   const images = meta.images.length > 0 ? meta.images : localImages;
+  const displayLabel = label;
   const heroImage =
     images[0] ??
     "https://images.pexels.com/photos/259588/pexels-photo-259588.jpeg?auto=compress&cs=tinysrgb&w=1200";
