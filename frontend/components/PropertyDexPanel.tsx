@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { formatUnits, parseUnits } from "viem";
 import { PROPERTY_DEX_ADDRESS, propertyDexAbi, USDC_ADDRESS, erc20Abi } from "../lib/contracts";
+import { base, baseSepolia } from "wagmi/chains";
 
 type Props = { propertyId: bigint };
 
@@ -73,34 +74,45 @@ export default function PropertyDexPanel({ propertyId }: Props) {
 
   const handleApprove = () => {
     if (!address) return;
+    const chain = chainId === base.id ? base : baseSepolia;
     const amt = parseUnits("1000000", 6);
     writeUsdc({
       address: USDC_ADDRESS,
       abi: erc20Abi,
       functionName: "approve",
-      args: [PROPERTY_DEX_ADDRESS, amt]
+      args: [PROPERTY_DEX_ADDRESS, amt],
+      chain,
+      account: address as `0x${string}`
     });
   };
 
   const handleBuy = () => {
     if (!buyAmount.trim()) return;
+    if (!address) return;
+    const chain = chainId === base.id ? base : baseSepolia;
     const amt = parseUnits(buyAmount, 6);
     writeDex({
       address: PROPERTY_DEX_ADDRESS,
       abi: propertyDexAbi,
       functionName: "swapStableForShares",
-      args: [propertyId, amt, 0n]
+      args: [propertyId, amt, 0n],
+      chain,
+      account: address as `0x${string}`
     });
   };
 
   const handleSell = () => {
     if (!sellAmount.trim()) return;
+    if (!address) return;
+    const chain = chainId === base.id ? base : baseSepolia;
     const sharesIn = BigInt(sellAmount);
     writeDex({
       address: PROPERTY_DEX_ADDRESS,
       abi: propertyDexAbi,
       functionName: "swapSharesForStable",
-      args: [propertyId, sharesIn, 0n]
+      args: [propertyId, sharesIn, 0n],
+      chain,
+      account: address as `0x${string}`
     });
   };
 
