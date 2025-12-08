@@ -212,10 +212,6 @@ type DexTrade = {
   propertyId?: bigint;
 };
 
-function hasTxHash(trade: DexTrade): trade is DexTrade & { txHash: string } {
-  return typeof (trade as any).txHash === "string";
-}
-
 function MyTradesSection({
   trades,
   loading,
@@ -245,7 +241,7 @@ function MyTradesSection({
       {hasWallet && !loading && safeTrades.length > 0 && (
         <div className="bg-white rounded-3xl border border-white px-3 py-3 space-y-2">
           {safeTrades.map((t, idx) => {
-            const key = hasTxHash(t) ? `${t.txHash}-${idx}` : `${idx}`;
+            const key = typeof t.txHash === "string" ? `${t.txHash}-${idx}` : `${idx}`;
             return <MyTradeRow key={key} trade={t} />;
           })}
         </div>
