@@ -87,7 +87,8 @@ export default function OneClickDepositButton({
         functionName: "voteAndLock",
         args: [propertyId, sharePriceWei],
         value: sharePriceWei,
-        chain: chainId === base.id ? base : baseSepolia
+        chain: chainId === base.id ? base : baseSepolia,
+        account: address as `0x${string}`
       },
       {
         onSuccess: (hash) => {
