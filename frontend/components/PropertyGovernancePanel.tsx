@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { formatDistanceToNowStrict } from "date-fns";
 import { useAccount, useChainId, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
 import { PROPERTY_GOVERNOR_ADDRESS, propertyGovernorAbi } from "../lib/contracts";
+import { base, baseSepolia } from "wagmi/chains";
 
 type Props = { propertyId: bigint };
 
@@ -85,7 +86,9 @@ export default function PropertyGovernancePanel({ propertyId }: Props) {
               address: PROPERTY_GOVERNOR_ADDRESS,
               abi: propertyGovernorAbi,
               functionName: "createProposal",
-              args: [propertyId, title.trim(), description.trim()]
+              args: [propertyId, title.trim(), description.trim()],
+              chain: chainId === base.id ? base : baseSepolia,
+              account: address as `0x${string}`
             });
           }}
           className="inline-flex items-center justify-center rounded-full px-4 py-1.5 text-[11px] font-semibold text-white bg-deepSea hover:bg-deepSea/90 disabled:opacity-50 disabled:cursor-not-allowed transition"
@@ -139,7 +142,9 @@ function ProposalRow({ proposalId, disabled }: { proposalId: bigint; disabled: b
       address: PROPERTY_GOVERNOR_ADDRESS,
       abi: propertyGovernorAbi,
       functionName: "castVote",
-      args: [proposalId, support]
+      args: [proposalId, support],
+      chain: chainId === base.id ? base : baseSepolia,
+      account: address as `0x${string}`
     });
   };
 
@@ -148,7 +153,9 @@ function ProposalRow({ proposalId, disabled }: { proposalId: bigint; disabled: b
       address: PROPERTY_GOVERNOR_ADDRESS,
       abi: propertyGovernorAbi,
       functionName: "finalizeProposal",
-      args: [proposalId]
+      args: [proposalId],
+      chain: chainId === base.id ? base : baseSepolia,
+      account: address as `0x${string}`
     });
   };
 
