@@ -91,7 +91,7 @@ export default function PropertyPage() {
 
   const meta = usePropertyMetadata(metadataURI);
   const localImages = useLocalImages(propertyId);
-  label = meta.label || label || slugLabel || `Property #${propertyId.toString()}`;
+  const label = meta.label || slugLabel || `Property #${propertyId.toString()}`;
   const images = meta.images.length > 0 ? meta.images : localImages;
   const heroImage =
     images[0] ??
