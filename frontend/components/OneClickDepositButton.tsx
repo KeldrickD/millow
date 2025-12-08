@@ -198,10 +198,11 @@ function getDisabledReason({
   overMax: boolean;
   remainingWei: bigint;
 }): string | null {
-  const allowedChains = [baseSepolia.id, base.id]; // Base Sepolia, Base mainnet
+  const allowedChains = [baseSepolia.id, base.id] as const; // Base Sepolia, Base mainnet
   if (!isConnected) return "Connect your wallet to join this deal.";
   if (sharePriceMissing) return "Share price not configured.";
-  if (chainId && !allowedChains.includes(chainId)) return "Wrong network. Switch to Base or Base Sepolia.";
+  if (chainId !== undefined && !allowedChains.includes(chainId as (typeof allowedChains)[number]))
+    return "Wrong network. Switch to Base or Base Sepolia.";
   if (fullyFunded) return "Funding target reached.";
   if (overMax) return `Only ${remainingWei > 0n ? formatEther(remainingWei) : "0"} ETH capacity remains.`;
   if (finalized && successful) return "Deal is already successful.";
