@@ -54,7 +54,7 @@ export function useMyPropertyActivity(propertyId: bigint) {
         const client = createPublicClient({
           chain,
           transport: http(rpcUrl)
-        });
+        }) as any;
 
         const events: ActivityItem[] = await fetchGlobalActivity(client);
         const perProperty = events.filter(
