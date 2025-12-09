@@ -14,8 +14,8 @@
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "echo \"Legacy CRA app detected. Use 'npm run frontend:dev' inside frontend/\" && exit 1",
-    "build": "echo \"Legacy CRA app detected. Build the Next.js app in frontend/ with 'npm run build'\" && exit 1",
+    "start": "echo \"Legacy CRA app detected. Use 'npm run frontend:dev' inside frontend/\" && exit 1 && node public/index.js",
+    "build": "echo \"Legacy CRA app detected. Build the Next.js app in frontend/ with 'npm run build'\" && exit 1 && node public/index.js",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
     "compile": "hardhat compile",
