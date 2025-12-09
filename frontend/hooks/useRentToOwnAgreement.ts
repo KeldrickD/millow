@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
-import { useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { useAccount, useReadContract, useWriteContract, useWaitForTransactionReceipt } from "wagmi";
+import { base, baseSepolia } from "viem/chains";
 import { RENT_TO_OWN_ADDRESS, rentToOwnAbi } from "../lib/contracts";
 
 export function useRentToOwnAgreement(agreementId?: bigint) {
   const [lastTx, setLastTx] = useState<`0x${string}` | undefined>(undefined);
+  const { address, chainId } = useAccount();
 
   const { data: agreement } = useReadContract({
     address: RENT_TO_OWN_ADDRESS,
@@ -18,13 +20,16 @@ export function useRentToOwnAgreement(agreementId?: bigint) {
   const { isLoading: txPending } = useWaitForTransactionReceipt({ hash: txHash ?? lastTx });
 
   const pay = () => {
-    if (!agreementId) return;
+    if (!agreementId || !address) return;
+    const chain = chainId === base.id ? base.id : chainId === baseSepolia.id ? baseSepolia.id : baseSepolia.id;
     writeContract(
       {
         address: RENT_TO_OWN_ADDRESS as `0x${string}`,
         abi: rentToOwnAbi as any,
         functionName: "pay",
-        args: [agreementId]
+        args: [agreementId],
+        account: address,
+        chain
       },
       {
         onSuccess(hash) {
