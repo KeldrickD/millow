@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  useAccount,
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt
@@ -32,6 +33,7 @@ export type CreateListingArgs = {
 
 export function useCreateListing() {
   const router = useRouter();
+  const { address } = useAccount();
 
   const { writeContract: writeProperty, data: txCreate } = useWriteContract();
   const { writeContract: writeEscrow, data: txPropose } = useWriteContract();
@@ -58,6 +60,11 @@ export function useCreateListing() {
   // Step 2: when createProperty mined, fire proposeProperty
   useEffect(() => {
     if (!createSuccess || !args) return;
+    if (!address) {
+      toast.error("Connect your wallet to create a listing.");
+      setInFlight(false);
+      return;
+    }
     writeEscrow(
       {
         address: VOTE_ESCROW_ADDRESS,
@@ -71,7 +78,7 @@ export function useCreateListing() {
           args.description
         ],
         chain: baseSepolia,
-        account: args.seller
+        account: address as `0x${string}`
       },
       {
         onSuccess(hash) {
@@ -111,6 +118,11 @@ export function useCreateListing() {
         if (inFlight) return;
         setInFlight(true);
         setArgs(p);
+        if (!address) {
+          toast.error("Connect your wallet to create a listing.");
+          setInFlight(false);
+          return;
+        }
         writeProperty(
           {
             address: PROPERTY_ADDRESS,
@@ -122,7 +134,9 @@ export function useCreateListing() {
               p.sharePriceWei,
               p.yieldBps,
               p.metadataURI
-            ]
+            ],
+            chain: baseSepolia,
+            account: address as `0x${string}`
           },
           {
             onSuccess(hash) {
@@ -145,7 +159,7 @@ export function useCreateListing() {
                     p.description
                   ],
                   chain: baseSepolia,
-                  account: p.seller
+                  account: address as `0x${string}`
                 },
                 {
                   onSuccess(hash) {
