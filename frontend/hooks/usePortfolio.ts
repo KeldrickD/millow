@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useAccount, usePublicClient } from "wagmi";
-import type { Address, PublicClient } from "viem";
+import type { Address } from "viem";
 import {
   fetchAllPropertySummaries,
   fetchUserPortfolio,
@@ -15,7 +15,7 @@ export type PortfolioEntry = UserHolding & { property: PropertySummary | null };
 
 export function usePortfolio() {
   const { address } = useAccount();
-  const publicClient = usePublicClient() as PublicClient | undefined;
+  const publicClient = usePublicClient();
 
   const [positions, setPositions] = useState<PortfolioEntry[]>([]);
   const [properties, setProperties] = useState<PropertySummary[]>([]);
@@ -33,9 +33,9 @@ export function usePortfolio() {
 
       try {
         const [holdings, props, rto] = await Promise.all([
-          fetchUserPortfolio(publicClient, address as Address),
-          fetchAllPropertySummaries(publicClient),
-          fetchUserRentToOwnAgreements(publicClient, address as Address)
+          fetchUserPortfolio(publicClient as any, address as Address),
+          fetchAllPropertySummaries(publicClient as any),
+          fetchUserRentToOwnAgreements(publicClient as any, address as Address)
         ]);
 
         if (cancelled) return;
