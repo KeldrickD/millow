@@ -278,7 +278,7 @@ export async function fetchGlobalActivity(client: PublicClient): Promise<Activit
     PROPERTY_DEX_ADDRESS &&
     PROPERTY_DEX_ADDRESS !== "0x0000000000000000000000000000000000000000"
   ) {
-    const buyLogs = await client.getLogs({
+    const buyLogs = await (client as any).getLogs({
       address: PROPERTY_DEX_ADDRESS,
       fromBlock: DEX_DEPLOY_BLOCK,
       toBlock: latestBlock,
@@ -308,7 +308,7 @@ export async function fetchGlobalActivity(client: PublicClient): Promise<Activit
       items[items.length - 1].args.timestamp = Number(block.timestamp);
     }
 
-    const sellLogs = await client.getLogs({
+    const sellLogs = await (client as any).getLogs({
       address: PROPERTY_DEX_ADDRESS,
       fromBlock: DEX_DEPLOY_BLOCK,
       toBlock: latestBlock,
