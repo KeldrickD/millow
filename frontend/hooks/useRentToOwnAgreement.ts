@@ -21,7 +21,7 @@ export function useRentToOwnAgreement(agreementId?: bigint) {
 
   const pay = () => {
     if (!agreementId || !address) return;
-    const chain = chainId === base.id ? base.id : chainId === baseSepolia.id ? baseSepolia.id : baseSepolia.id;
+    const chain = chainId === base.id ? base : chainId === baseSepolia.id ? baseSepolia : baseSepolia;
     writeContract(
       {
         address: RENT_TO_OWN_ADDRESS as `0x${string}`,
