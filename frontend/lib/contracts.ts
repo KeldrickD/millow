@@ -3,10 +3,14 @@ function requireAddress(envName: string, fallback?: `0x${string}`): `0x${string}
   const fromEnv = process.env[envName] as `0x${string}` | undefined;
   const isProd = process.env.NODE_ENV === "production";
   if (fromEnv) return fromEnv;
-  if (isProd && !fromEnv) {
-    throw new Error(`Missing required env: ${envName} in production`);
+  // If we have a fallback, prefer returning it even in production to avoid hard crashes.
+  if (fallback) {
+    if (isProd) {
+      console.warn(`Missing env ${envName} in production; using fallback ${fallback}`);
+    }
+    return fallback;
   }
-  if (fallback) return fallback;
+  // No fallback and no env: fail fast with a clear error.
   throw new Error(`Address for ${envName} is not configured`);
 }
 
