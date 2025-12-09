@@ -32,7 +32,7 @@ export function useMyTrades() {
         const client = createPublicClient({
           chain,
           transport: http(rpcUrl)
-        });
+        }) as any;
 
         const events = await fetchGlobalActivity(client);
         const mine = events.filter((evt) => {
