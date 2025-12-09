@@ -14,6 +14,7 @@ import {
   propertyAbi,
   voteEscrowAbi
 } from "../lib/contracts";
+import { base, baseSepolia } from "wagmi/chains";
 
 export type CreateListingArgs = {
   propertyId: bigint;
@@ -68,7 +69,9 @@ export function useCreateListing() {
           args.targetWei,
           args.deadline,
           args.description
-        ]
+        ],
+        chain: baseSepolia,
+        account: args.seller
       },
       {
         onSuccess(hash) {
@@ -140,7 +143,9 @@ export function useCreateListing() {
                     p.targetWei,
                     p.deadline,
                     p.description
-                  ]
+                  ],
+                  chain: baseSepolia,
+                  account: p.seller
                 },
                 {
                   onSuccess(hash) {
