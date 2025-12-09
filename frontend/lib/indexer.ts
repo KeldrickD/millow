@@ -80,13 +80,13 @@ export async function fetchAllPropertyIds(client: PublicClient): Promise<bigint[
 
 export async function fetchPropertySummary(client: PublicClient, propertyId: bigint): Promise<PropertySummary> {
   const [propCfg, proposal] = await Promise.all([
-    client.readContract({
+    (client as any).readContract({
       address: PROPERTY_ADDRESS,
       abi: propertyAbi,
       functionName: "properties",
       args: [propertyId],
     }),
-    client.readContract({
+    (client as any).readContract({
       address: VOTE_ESCROW_ADDRESS,
       abi: voteEscrowAbi,
       functionName: "getProposal",
@@ -140,7 +140,7 @@ export async function fetchUserPortfolio(client: PublicClient, user: Address): P
   const [balances, pendings] = await Promise.all([
     Promise.all(
       ids.map((id) =>
-        client.readContract({
+        (client as any).readContract({
           address: PROPERTY_ADDRESS,
           abi: propertyAbi,
           functionName: "balanceOf",
@@ -150,7 +150,7 @@ export async function fetchUserPortfolio(client: PublicClient, user: Address): P
     ),
     Promise.all(
       ids.map((id) =>
-        client.readContract({
+        (client as any).readContract({
           address: YIELD_VAULT_ADDRESS,
           abi: yieldVaultAbi,
           functionName: "pendingYield",
