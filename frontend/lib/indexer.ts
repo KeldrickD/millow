@@ -70,7 +70,7 @@ const DEX_DEPLOY_BLOCK =
 // --- Core property discovery ---
 
 export async function fetchAllPropertyIds(client: PublicClient): Promise<bigint[]> {
-  const ids = (await client.readContract({
+  const ids = (await (client as any).readContract({
     address: VOTE_ESCROW_ADDRESS,
     abi: voteEscrowAbi,
     functionName: "getAllPropertyIds",
