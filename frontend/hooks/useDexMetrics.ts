@@ -26,12 +26,13 @@ export function useDexMetrics(propertyId: bigint) {
         return;
       }
       try {
-        const pool = (await publicClient.readContract({
+        const pool = await (publicClient as any).readContract({
           address: PROPERTY_DEX_ADDRESS,
           abi: propertyDexAbi,
           functionName: "getPool",
-          args: [propertyId]
-        })) as any;
+          args: [propertyId],
+          chainId: publicClient.chain?.id
+        });
         const exists = pool[0] as boolean;
         const shareReserve = pool[2] as bigint;
         const stableReserve = pool[3] as bigint;
@@ -42,11 +43,12 @@ export function useDexMetrics(propertyId: bigint) {
         const shareReserveF = Number(shareReserve);
         const stableReserveF = Number(formatUnits(stableReserve, 6));
         const impliedPriceUsdc = shareReserveF > 0 ? stableReserveF / shareReserveF : undefined;
-        const totalSupply = (await publicClient.readContract({
+        const totalSupply = (await (publicClient as any).readContract({
           address: PROPERTY_ADDRESS,
           abi: propertyAbi,
           functionName: "totalSupply",
-          args: [propertyId]
+          args: [propertyId],
+          chainId: publicClient.chain?.id
         })) as bigint;
         const impliedMarketCapUsdc = impliedPriceUsdc !== undefined ? impliedPriceUsdc * Number(totalSupply) : undefined;
         if (!cancelled) {
